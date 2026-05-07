@@ -1,0 +1,48 @@
+schema_version: "1.0"
+kind: issue_handoff
+issue_identity:
+  number: "7"
+  title: "Dashboard Canvas layout persistence"
+  url: "https://github.com/paulpai0412/wferp/issues/7"
+  branch: "agent/issue-7-dashboard-canvas-layout-persistence"
+acceptance_criteria_evidence:
+  AC1:
+    status: pass
+    evidence: "test_approved_chart_draft_can_be_added_to_dashboard_canvas adds a DashboardChartDraft created from an approved GovernedQueryResult; test_canvas_rejects_invalid_chart_drafts_before_placement refuses raw ChartSpec/non-draft inputs and unapproved query results."
+  AC2:
+    status: pass
+    evidence: "test_chart_can_be_moved_and_resized_without_losing_identity moves and resizes the same chart_id through the public DashboardCanvas API."
+  AC3:
+    status: pass
+    evidence: "test_layout_persistence_round_trips_coordinates_dimensions_and_chart_payloads asserts to_payload includes chart_id, x, y, w, h, and chart payloads."
+  AC4:
+    status: pass
+    evidence: "test_layout_persistence_round_trips_coordinates_dimensions_and_chart_payloads reloads via load_dashboard_canvas and compares replayed render_layout payloads."
+  AC5:
+    status: pass
+    evidence: "test_overlap_and_bounds_violations_are_rejected_deterministically, test_persisted_layout_replay_rejects_invalid_overlap_and_bounds_payloads, test_canvas_rejects_fractional_grid_values, and test_persisted_layout_replay_rejects_malformed_chart_metadata assert deterministic rejection codes."
+  AC6:
+    status: pass
+    evidence: "tests/skill_scripts/test_dashboard_canvas.py covers add, move, resize, overlap rejection, bounds rejection, serialization, and replay."
+files_changed:
+  - "skill_scripts/dashboard_canvas.py"
+  - "tests/skill_scripts/test_dashboard_canvas.py"
+  - "docs/agents/handoffs/issue-7.yaml"
+verification:
+  diagnostics:
+    - command: "lsp_diagnostics skill_scripts/dashboard_canvas.py tests/skill_scripts/test_dashboard_canvas.py"
+      result: "pass: no diagnostics"
+  automated:
+    - command: "python3 -m py_compile skill_scripts/dashboard_canvas.py tests/skill_scripts/test_dashboard_canvas.py"
+      result: "pass"
+    - command: "python3 -m pytest tests/skill_scripts/test_dashboard_canvas*.py -q"
+      result: "pass: 8 passed"
+    - command: "python3 -m pytest tests/skill_scripts/ -q"
+      result: "pass: 82 passed"
+  manual_qa:
+    - surface: "library"
+      command: "minimal Python driver using author_chart_spec, DashboardCanvas, load_dashboard_canvas"
+      result: "pass: approved DashboardChartDraft added/moved/resized/serialized/reloaded; raw/manual/unapproved drafts, overlap, out-of-bounds, fractional grid values, and semantically malformed persisted chart metadata refused"
+blockers_or_risks:
+  - "No blocker identified. This issue remains a library-only Dashboard Canvas tracer bullet; no browser UI exists in scope."
+next_recommended_step: "Main session should inspect the verified commit, then decide whether to push/create the PR for issue #7."
