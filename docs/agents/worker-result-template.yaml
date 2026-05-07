@@ -1,5 +1,7 @@
 schema_version: "1.0"
 kind: worker_result
+line_cap: 80
+raw_evidence_policy: index_only_refs_no_raw_logs_or_transcripts
 
 issue:
   number: "<issue-number>"
