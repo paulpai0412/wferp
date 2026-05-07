@@ -10,12 +10,12 @@ acceptance_criteria_evidence:
   - {ac_id: "AC5", status: worker_self_checked, evidence_ref: "scripts/agent_context_budget_check.py", note: "New artifacts remain compact and index-only; no raw logs or transcripts were inlined."}
 compact_verification_summary:
   status: worker_self_checked
-  note: "Worker self-check only; final acceptance requires a fresh verifier packet for PR review."
+  note: "Worker self-check only; final acceptance requires a fresh verifier packet for PR #21 review."
   command: "python3 scripts/agent_context_budget_check.py"
-evidence_packet_refs: {verifier_packet: "docs/agents/evidence/issue-20-pr-pending.yaml", worker_artifact_bundle: "docs/agents/worker-results/issue-20.yaml", raw_evidence_policy: "Index-only refs in repo docs; raw logs stay outside main-agent context."}
+evidence_packet_refs: {verifier_packet: "docs/agents/evidence/issue-20-pr-21.yaml", worker_artifact_bundle: "docs/agents/worker-results/issue-20.yaml", pr: "https://github.com/paulpai0412/wferp/pull/21", raw_evidence_policy: "Index-only refs in repo docs; raw logs stay outside main-agent context."}
 files_changed_summary:
   - {path: "docs/agents/issue-packets/issue-20.yaml", summary: "Prepared the workflow self-repair issue packet."}
   - {path: "docs/agents/evidence/issue-2-pr-8.yaml + docs/agents/handoffs/issue-2.yaml", summary: "Reconstructed compact issue #2 traceability from GitHub and merged-repo sources."}
   - {path: "docs/agents/runtime/context-checkpoint.yaml + docs/agents/worker-results/issue-20.yaml", summary: "Updated workflow continuation and worker-result artifacts for the PRD audit handoff."}
 blockers_or_risks: ["Historical PR #8 raw worker/verifier artifacts were not preserved before workflow packet enforcement; verifier packet still required."]
-next_recommended_step: "Create or review the issue #20 PR, then assign a fresh verifier to validate the reconstructed traceability docs."
+next_recommended_step: "Review PR #21, then assign a fresh verifier to validate the reconstructed traceability docs."

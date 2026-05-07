@@ -48,11 +48,11 @@ verification:
   final_acceptance_claim: false
 evidence_packet_refs:
   worker_artifact_bundle: "docs/agents/worker-results/issue-20.yaml"
-  verifier_packet: "docs/agents/evidence/issue-20-pr-pending.yaml"
+  verifier_packet: "docs/agents/evidence/issue-20-pr-21.yaml"
   raw_evidence_policy: "stored_outside_main_agent_context"
 role_boundary: {actor_role: "issue_worker", may_execute_implementation_self_checks: true, may_execute_final_acceptance_qa: false, may_emit_final_verification: false, verifier_packet_required_for_completion: true}
-pr: {number: "pending", url: "", ready_for_review: false}
+pr: {number: "21", url: "https://github.com/paulpai0412/wferp/pull/21", ready_for_review: true}
 blockers: ["A fresh verifier packet is still required for issue #20 before final acceptance can be claimed."]
 next_recommended_step: "Push the issue #20 branch, open the PR, and hand it to a fresh verifier that can validate the reconstructed traceability artifacts."
-handoff: {repo_path: "docs/agents/handoffs/issue-20.yaml", github_summary_posted: false}
+handoff: {repo_path: "docs/agents/handoffs/issue-20.yaml", github_summary_posted: true}
 metadata: {worker: "Sisyphus-Junior", worker_session_id: "worker-result:issue-20", completed_at: "2026-05-07T18:45:00+08:00"}
