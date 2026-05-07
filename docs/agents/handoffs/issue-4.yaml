@@ -40,7 +40,7 @@ compact_verification_summary:
 
 evidence_packet_refs:
   verifier_packet: "docs/agents/evidence/issue-4-pr-13.yaml"
-  worker_artifact_bundle: "local session evidence from PR #13"
+  worker_artifact_bundle: "local session evidence from commit 7e4c527"
   pr: "https://github.com/paulpai0412/wferp/pull/13"
   raw_evidence_policy: "Detailed command output stays in verifier artifacts; this handoff keeps compact refs only."
 
