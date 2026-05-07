@@ -1,0 +1,56 @@
+schema_version: "1.0"
+kind: evidence_packet
+
+subject:
+  type: "<issue_pr|phase>"
+  issue_number: "<issue-number-or-empty-for-phase>"
+  pr_number: "<pr-number-or-empty>"
+  phase: "<phase-name-or-empty>"
+  branch: "<branch-name>"
+  sha: "<commit-sha>"
+
+verifier:
+  actor: "<verifier-worker-session-or-agent-name>"
+  started_at: "<ISO-8601 timestamp>"
+  completed_at: "<ISO-8601 timestamp>"
+
+status: "<pass|blocked|fail>"
+
+acceptance_criteria_matrix:
+  - ac_id: "AC1"
+    status: "<pass|blocked|fail>"
+    evidence_ref: "<artifact-id, command-id, check-run-url, or handoff-path>"
+    note: "<one-line observed result>"
+
+gates:
+  diagnostics_and_build_gate:
+    status: "<pass|not_applicable|blocked|fail>"
+    evidence_ref: "<artifact-id-or-check-run-url>"
+  surface_qa_gate:
+    status: "<pass|not_applicable|blocked|fail>"
+    evidence_ref: "<artifact-id-or-check-run-url>"
+  review_gate:
+    status: "<pass|not_applicable|blocked|fail>"
+    evidence_ref: "<artifact-id-or-check-run-url>"
+  security_gate:
+    status: "<pass|not_applicable|blocked|fail>"
+    evidence_ref: "<artifact-id-or-check-run-url>"
+
+artifact_manifest:
+  bundle_ref: "<ci-artifact-url-or-local-artifact-path>"
+  retention: "<retention-policy-or-empty>"
+  items:
+    - id: "<stable-artifact-id>"
+      kind: "<junit|coverage|log|screenshot|trace|driver-output|summary|other>"
+      path: "<path-inside-bundle>"
+      sha256: "<sha256-or-empty-if-unavailable>"
+      description: "<one-line purpose>"
+
+compact_summary:
+  outcome: "<one-line verifier conclusion>"
+  automated_checks: "<one-line pass/fail summary, no raw output>"
+  manual_qa: "<one-line surface result, no step transcript>"
+  risks_or_limitations:
+    - "<risk, limitation, or none>"
+
+next_recommended_step: "<single next action for orchestrator or human reviewer>"
