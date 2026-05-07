@@ -222,10 +222,8 @@ Footer {
   }
   .wavy::before {
       content: "\2000\2000";
-      /* IE浏览器实线代替 */
-      text-decoration: overline;
-      /* 现代浏览器 */
-      text-decoration: overline wavy;
+      text-decoration-line: overline;
+      text-decoration-style: wavy;
   }
 
  /* tooltip settings start */
