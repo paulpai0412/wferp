@@ -66,10 +66,10 @@ automation_boundaries:
     - commit_after_all_required_gates_pass
     - push_branch_to_remote
     - create_pull_request
-    - close_issue_after_merged_pull_request
   requires_human_approval:
     - install_or_update_external_skills_not_already_approved
     - merge_pull_request_after_review
+    - close_issue_after_merged_pull_request
     - run_non_test_database_execution
     - destructive_git_or_shell_operations
     - install_hooks_plugins_or_scripts_from_third_party_sources
@@ -304,6 +304,71 @@ branch_and_pr_policy:
   merge_policy:
     requires_human_review_and_merge_approval: true
 
+context_budget_policy:
+  measurement: percent_of_available_session_context_used
+  checkpoint_warning_at_percent: 45
+  stop_and_rotate_at_percent: 50
+  checkpoint_template_path: docs/agents/runtime/context-checkpoint.yaml
+  checkpoint_only_cross_session_resume: true
+  resume_policy:
+    allowed_context:
+      - issue_packet
+      - repo_policy_docs
+      - latest_context_checkpoint
+      - compact_handoff_refs
+    forbidden_context:
+      - full_prior_worker_transcript
+      - raw_test_logs
+      - raw_browser_traces
+      - raw_sql_execution_logs
+    requirements:
+      - create_or_update_checkpoint_before_rotation
+      - resume_from_checkpoint_not_chat_history
+      - keep_checkpoint_at_or_below_80_lines
+
+artifact_caps_policy:
+  raw_evidence_policy: index_only_in_repo_docs_and_main_context
+  line_caps:
+    issue_packet: 80
+    issue_handoff: 35
+    evidence_packet: 60
+    context_checkpoint: 80
+    worker_result: 80
+  templates_must_declare_caps: true
+  script_gate: scripts/agent_context_budget_check.py
+  forbidden_payloads:
+    - full_worker_transcript
+    - full_verifier_transcript
+    - raw_test_logs
+    - raw_browser_traces
+    - raw_sql_execution_logs
+    - screenshot_binary_or_base64
+
+release_worker_policy:
+  role: release_worker
+  purpose: Narrow post-verifier PR release and issue-close executor.
+  may_run_only_after:
+    - verifier_packet_status_pass
+    - pr_is_mergeable
+    - required_checks_pass
+    - human_merge_approval_policy_satisfied
+  allowed_actions:
+    - confirm_pr_mergeability_and_required_checks
+    - merge_approved_pull_request
+    - close_linked_issue_after_merge
+    - post_compact_release_summary_with_evidence_packet_ref
+  forbidden_actions:
+    - implement_issue_scope
+    - run_final_acceptance_qa
+    - bypass_required_checks_or_reviews
+    - merge_without_required_human_approval
+    - close_issue_before_pr_merge
+  blocked_when:
+    - verifier_packet_missing_or_not_pass
+    - pr_not_mergeable
+    - required_checks_pending_or_failed
+    - human_approval_required_but_absent
+
 session_isolation_policy:
   main_agent_role: orchestrator_only
   main_agent_may_implement:
@@ -419,6 +484,7 @@ evidence_packet_policy:
     repo_handoff_keeps: compact_summary_and_refs_only
     raw_evidence_kept_in: ci_or_local_artifact_bundle
     main_agent_consumes: evidence_packet_index_only
+    raw_evidence_policy: index_only_no_raw_logs_or_traces_in_repo_docs
   required_fields:
     - subject
     - verifier
@@ -436,6 +502,7 @@ evidence_packet_policy:
     - screenshot_binary_or_base64
     - verbose_browser_trace
     - full_verifier_transcript
+  line_cap: 60
 
 phases:
   - id: clarify_requirements
