@@ -1,5 +1,11 @@
 schema_version: "1.0"
 kind: issue_handoff
+
+legacy_note:
+  pre_enforcement: true
+  not_proof_of_fresh_verifier_separation: true
+  reason: "Created before the P0 autonomous workflow role-separation packet requirements were enforced."
+
 issue_identity:
   number: "3"
   title: "Chart Spec authoring and validation"

@@ -47,15 +47,22 @@ implementation_notes:
     - "<blocking issue, PR, service, or none>"
 
 verification_plan:
-  required_gates:
-    - "diagnostics_and_build_gate"
-    - "surface_qa_gate"
-  automated_checks:
+  worker_self_checks:
     - command: "<command>"
-      success_criteria: "<what must pass>"
-  manual_qa:
+      purpose: "implementation feedback only; not final acceptance QA"
+      success_criteria: "<what should pass before worker returns>"
+  verifier_acceptance_checks:
+    required_gates:
+      - "diagnostics_and_build_gate"
+      - "surface_qa_gate"
+      - "review_gate"
+    automated_checks:
+      - command: "<command-or-ci-artifact-ref>"
+        success_criteria: "<what verifier must observe or confirm>"
+  verifier_manual_qa:
+    owner: "pr_verifier"
     surface: "<cli|library|api|browser|sql|docs>"
-    happy_path: "<what the worker must exercise>"
+    happy_path: "<what the verifier must exercise or artifact-confirm>"
     refusal_or_error_path: "<what edge/refusal path to exercise or n/a>"
 
 handoff_contract:
@@ -88,11 +95,17 @@ result_contract:
     - blockers
     - next_recommended_step
     - evidence_packet_refs
+    - role_boundary
   forbidden_payloads:
     - full_worker_transcript
     - full_verifier_transcript
     - raw_test_logs
     - verbose_manual_qa_transcript
+
+role_boundary:
+  orchestrator_may_validate_contract_only: true
+  worker_may_emit_final_acceptance: false
+  verifier_packet_required_for_completion: true
 
 prepared_by:
   actor: "<orchestrator-name>"

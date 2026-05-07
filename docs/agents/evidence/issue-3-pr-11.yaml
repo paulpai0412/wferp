@@ -9,6 +9,11 @@ subject:
   branch: "agent/issue-3-chart-spec-authoring-and-validation"
   sha: "104a171"
 
+legacy_note:
+  pre_enforcement: true
+  not_proof_of_fresh_verifier_separation: true
+  reason: "Created before the P0 autonomous workflow role-separation packet requirements were enforced."
+
 verifier:
   actor: "historical-verifier-summary"
   started_at: "2026-05-06T00:00:00+08:00"

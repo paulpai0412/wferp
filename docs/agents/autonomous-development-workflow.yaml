@@ -10,6 +10,37 @@ purpose: >
   file directly; agents use it as the operating contract and future runners may
   translate it into OpenCode skills, commands, permissions, and shell gates.
 
+priority_bridge:
+  applies_when:
+    - user_invokes_autonomous_development_workflow
+    - main_agent_is_orchestrating_ready_for_agent_issue
+  rule: >
+    Repo autonomous workflow role isolation is the controlling task contract.
+    Generic agent requirements to personally run diagnostics, tests, builds,
+    manual QA, browser QA, SQL execution validation, or review gates must be
+    satisfied by fresh worker/verifier artifacts rather than direct main-agent
+    execution.
+  conflict_policy: >
+    If platform or generic agent instructions appear to require direct
+    main-agent QA, the main agent must stop and report a policy conflict instead
+    of running issue or phase QA itself.
+  main_agent_contract_validation_only:
+    allowed:
+      - validate_worker_result_schema
+      - validate_evidence_packet_schema
+      - confirm_required_refs_exist
+      - compare_acceptance_criteria_ids_to_evidence_refs
+      - confirm_proof_of_separation_fields_are_present
+      - update_handoff_or_tracker_metadata_from_verified_refs
+    forbidden:
+      - run_pytest_or_test_commands
+      - run_py_compile_or_build_commands_for_issue_code
+      - run_lsp_diagnostics_on_issue_code
+      - run_manual_driver_or_surface_qa
+      - run_browser_or_playwright_qa
+      - run_sql_execution_validation
+      - run_review_work_as_main_agent_qa
+
 scope:
   repository: paulpai0412/wferp
   issue_tracker: github
@@ -31,7 +62,7 @@ automation_boundaries:
     - install_python_dependencies_from_repo_docs
     - start_and_seed_local_test_db
     - implement_ready_for_agent_issue
-    - run_tests_diagnostics_e2e_and_review_gates
+    - delegate_tests_diagnostics_e2e_and_review_gates_to_worker_or_verifier
     - commit_after_all_required_gates_pass
     - push_branch_to_remote
     - create_pull_request
@@ -48,6 +79,7 @@ automation_boundaries:
     - weaken_or_delete_failing_tests_to_pass
     - commit_secrets_or_credentials
     - execute_write_sql_or_arbitrary_multi_statement_sql
+    - main_agent_direct_issue_or_phase_qa
 
 skills:
   built_in_or_current:
@@ -121,6 +153,7 @@ global_gates:
       - focused_tests_pass
   diagnostics_and_build_gate:
     required: true
+    owner: worker_self_check_or_pr_verifier
     pass_when:
       - lsp_diagnostics_clean_for_changed_files_when_supported
       - related_tests_pass
@@ -128,6 +161,7 @@ global_gates:
       - pre_existing_failures_are_named_and_not_mixed_with_issue_work
   surface_qa_gate:
     required: true
+    owner: pr_verifier_or_phase_verifier
     pass_when:
       - deliverable_is_used_through_real_user_surface
       - happy_path_observed
@@ -135,6 +169,7 @@ global_gates:
       - evidence_is_recorded_in_issue_or_pr_notes
   review_gate:
     policy: major_full_minor_lightweight
+    owner: pr_verifier
     major_change_requires:
       - review-work_all_agents_pass
     lightweight_change_requires:
@@ -262,9 +297,10 @@ branch_and_pr_policy:
       - linked_issue
       - compact_acceptance_criteria_matrix
       - verification_summary_and_artifact_refs
-      - manual_qa_result_summary
+      - verifier_manual_qa_result_summary
       - review_gate_result
       - known_limitations_or_pre_existing_failures
+    final_qa_statement_requires_verifier_packet: true
   merge_policy:
     requires_human_review_and_merge_approval: true
 
@@ -278,6 +314,24 @@ session_isolation_policy:
     - implement_general_issue_scope
     - retain_full_worker_transcript_across_issues
     - run_issue_or_phase_qa_except_contract_validation
+    - run_tests_builds_diagnostics_or_manual_qa_for_issue_acceptance
+    - run_review_work_as_issue_or_pr_qa
+  contract_validation_definition:
+    allowed:
+      - schema_check_worker_result_required_fields
+      - schema_check_evidence_packet_required_fields
+      - verify_worker_and_verifier_refs_are_present
+      - verify_acceptance_criteria_map_to_evidence_refs
+      - verify_worker_verifier_proof_of_separation_is_present
+      - update_handoff_and_tracker_with_compact_refs
+    forbidden:
+      - run_pytest
+      - run_py_compile
+      - run_lsp_diagnostics_on_issue_code
+      - run_browser_qa
+      - run_sql_execution_validation
+      - run_manual_surface_driver
+      - run_review_work
   issue_execution:
     use_fresh_worker_session_per_issue: true
     use_fresh_verifier_session_per_pr: true
@@ -286,6 +340,7 @@ session_isolation_policy:
     worker_must_terminate_after_issue: true
     worker_returns_structured_result_only: true
     verifier_returns_evidence_packet_only: true
+    proof_of_separation_required: true
     allow_specialist_helpers:
       - explore
       - librarian
@@ -346,6 +401,7 @@ worker_result_policy:
     - blockers
     - next_recommended_step
     - evidence_packet_refs
+    - role_boundary
   forbidden_payloads:
     - full_worker_transcript
     - long_form_chain_of_thought
@@ -366,9 +422,11 @@ evidence_packet_policy:
   required_fields:
     - subject
     - verifier
+    - proof_of_separation
     - status
     - acceptance_criteria_matrix
     - gates
+    - role_boundary
     - artifact_manifest
     - compact_summary
     - next_recommended_step
@@ -465,22 +523,18 @@ phases:
       - expand_context_on_demand
       - map_acceptance_criteria_to_planned_evidence
       - run_tdd_red_green_refactor_vertical_slices
-      - run_changed_file_diagnostics
-      - run_focused_tests_then_relevant_suite
-      - run_surface_specific_e2e
-      - run_review_gate
+      - run_implementation_self_checks_for_feedback
+      - report_self_check_summary_without_final_acceptance_claim
       - commit_if_all_gates_pass
       - push_branch_if_all_gates_pass
       - create_pr_if_all_gates_pass
-      - write_repo_handoff
-      - post_issue_or_pr_evidence_summary
+      - write_worker_result_or_draft_handoff_refs
+      - post_implementation_self_check_summary_without_final_acceptance_claim
       - emit_structured_result_object
       - terminate_worker_session
     gates:
       - tdd_gate
-      - diagnostics_and_build_gate
-      - surface_qa_gate
-      - review_gate
+      - implementation_self_check_gate
       - git_gate
 
   - id: per_issue_tdd
@@ -492,12 +546,11 @@ phases:
       - diagnose
     gates:
       - tdd_gate
-      - diagnostics_and_build_gate
-      - surface_qa_gate
+      - implementation_self_check_gate
 
   - id: per_issue_e2e
     goal: Verify each issue through its smallest real user surface.
-    policy: issue_small_e2e
+    policy: verifier_owned_issue_small_e2e
     primary_skills:
       - playwright
       - e2e-testing
@@ -535,6 +588,7 @@ phases:
       - rerun_required_focused_checks_or_confirm_ci_artifacts
       - rerun_surface_specific_qa_when_artifact_absent_or_untrusted
       - compare_acceptance_criteria_to_observed_evidence
+      - confirm_worker_verifier_role_separation
       - emit_evidence_packet_with_artifact_manifest
       - terminate_verifier_session
     gates:
@@ -658,12 +712,15 @@ evidence_templates:
     - blockers
     - next_recommended_step
     - evidence_packet_refs
+    - role_boundary
   evidence_packet_fields:
     - subject
     - verifier
+    - proof_of_separation
     - status
     - acceptance_criteria_matrix
     - gates
+    - role_boundary
     - artifact_manifest
     - compact_summary
     - next_recommended_step
@@ -672,6 +729,6 @@ evidence_templates:
     - linked_issue
     - compact_acceptance_criteria_matrix
     - verification_summary_and_artifact_refs
-    - manual_qa_result_summary
+    - verifier_manual_qa_result_summary
     - review_gate
     - rollout_or_followup

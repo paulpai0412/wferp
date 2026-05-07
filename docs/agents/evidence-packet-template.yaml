@@ -11,8 +11,19 @@ subject:
 
 verifier:
   actor: "<verifier-worker-session-or-agent-name>"
+  actor_role: "pr_verifier"
+  verifier_session_id: "<session-id-or-artifact-ref>"
   started_at: "<ISO-8601 timestamp>"
   completed_at: "<ISO-8601 timestamp>"
+
+proof_of_separation:
+  worker_result_ref: "<worker-result-artifact-ref>"
+  worker_actor: "<worker-session-or-agent-name>"
+  worker_session_id: "<session-id-or-artifact-ref>"
+  verifier_actor: "<verifier-worker-session-or-agent-name>"
+  verifier_session_id: "<session-id-or-artifact-ref>"
+  verifier_is_distinct_from_worker: true
+  verifier_read_worker_result_only: true
 
 status: "<pass|blocked|fail>"
 
@@ -36,12 +47,18 @@ gates:
     status: "<pass|not_applicable|blocked|fail>"
     evidence_ref: "<artifact-id-or-check-run-url>"
 
+role_boundary:
+  acceptance_qa_owner: "pr_verifier"
+  main_agent_ran_issue_qa: false
+  worker_self_checks_are_not_final_acceptance: true
+
 artifact_manifest:
   bundle_ref: "<ci-artifact-url-or-local-artifact-path>"
   retention: "<retention-policy-or-empty>"
   items:
     - id: "<stable-artifact-id>"
       kind: "<junit|coverage|log|screenshot|trace|driver-output|summary|other>"
+      executor_role: "pr_verifier"
       path: "<path-inside-bundle>"
       sha256: "<sha256-or-empty-if-unavailable>"
       description: "<one-line purpose>"

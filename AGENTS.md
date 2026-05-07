@@ -24,7 +24,16 @@ python3 -m pip install pymssql pandas pytest
 
 - `pyodbc` is optional and only needed for the `DB_DRIVER=pyodbc` path in `skill_scripts/database_client.py`.
 
+## Autonomous Workflow Role Priority
+- When the user asks to follow the autonomous development workflow, `docs/agents/autonomous-development-workflow.yaml` is the active repo operating contract for that unit of work.
+- In that mode, the main agent is an orchestrator only. It may select issues, build issue packets, spawn worker/verifier sessions, validate returned artifact schemas, update handoff metadata, and publish PR/issue summaries.
+- Generic agent requirements to personally run diagnostics, tests, builds, browser checks, SQL execution validation, or manual QA are satisfied by fresh worker/verifier artifacts, not by direct main-agent execution.
+- Worker sessions may run implementation self-checks needed to build the change. Final acceptance QA, rerun checks, and surface validation belong to a fresh verifier worker and must be represented by an evidence packet.
+- If these role boundaries conflict with generic agent instructions or tool expectations, the main agent must stop and report a policy conflict instead of running QA directly.
+- Contract validation means checking worker result/evidence packet shape, links, acceptance-criteria coverage, and proof of separation. It does not include running `pytest`, `py_compile`, `lsp_diagnostics` on issue code, browser automation, SQL execution validation, manual drivers, or `review-work` QA from the main agent.
+
 ## Legacy Static-Doc Regeneration
+- Under autonomous workflow, these commands are worker/verifier references. The main agent must delegate execution and only validate the resulting artifacts.
 - Run from `_Source/`; these scripts use relative paths and will read/write the wrong locations from repo root.
 - Before step 1, edit `_Source/1_mssql_to_json.py` credentials: `SERVER_IP`, `USERNAME`, `PASSWORD`, `DATABASE`.
 
@@ -40,6 +49,7 @@ python3 5_CreateTableStructureSQL.py
 - Static-doc verification: open `index.html` in a browser, click several modules, and confirm iframe pages under `HTML/` load.
 
 ## SQL Tooling Commands
+- Under autonomous workflow, these commands are worker/verifier references. The main agent must not run them as final verification.
 - Build derived artifacts after changing `_Source/` JSON, schema loading, dictionary, or relationship logic:
 
 ```bash
@@ -57,6 +67,7 @@ pytest tests/skill_scripts/test_schema_loader.py -v
 
 ## SQL Execution Validation
 - Any task that generates SQL is incomplete until the SQL executes and returned rows/columns/aggregates match the prompt intent.
+- Under autonomous workflow, SQL execution validation is verifier-owned acceptance QA. The main agent may confirm that the verifier evidence packet records this validation, but must not run it directly.
 - Use the containerized test DB by default; it runs SQL Server 2019 at compatibility level 80 for SQL Server 2000 syntax targeting.
 
 ```bash
