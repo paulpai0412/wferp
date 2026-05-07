@@ -73,4 +73,4 @@ next_recommended_step: "Spawn a fresh PR #18 verifier to rerun issue #6 acceptan
 
 handoff:
   repo_path: "docs/agents/handoffs/issue-6.yaml"
-  github_summary_posted: false
+  github_summary_posted: true
