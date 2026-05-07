@@ -268,6 +268,83 @@ branch_and_pr_policy:
   merge_policy:
     requires_human_review_and_merge_approval: true
 
+session_isolation_policy:
+  main_agent_role: orchestrator_only
+  main_agent_may_implement:
+    - workflow_self_repair_only
+    - worker_boot_failure_recovery
+    - tiny_process_doc_fix
+  main_agent_must_not:
+    - implement_general_issue_scope
+    - retain_full_worker_transcript_across_issues
+  issue_execution:
+    use_fresh_worker_session_per_issue: true
+    worker_reads_issue_packet_first: true
+    worker_must_terminate_after_issue: true
+    worker_returns_structured_result_only: true
+    allow_specialist_helpers:
+      - explore
+      - librarian
+      - oracle
+    max_delegation_depth: 3
+  issue_bootstrap_context:
+    - issue_packet
+    - AGENTS.md
+    - CONTEXT.md
+    - docs/agents/domain.md
+    - docs/agents/autonomous-development-workflow.yaml
+    - parent_prd_relevant_slice
+    - previous_issue_handoff
+
+handoff_policy:
+  on_success: required
+  on_blocked: required
+  on_failed_after_retries: required
+  repo_path_template: "docs/agents/handoffs/issue-{issue_number}.yaml"
+  github_summary_required: true
+  include_sections:
+    - issue_identity
+    - acceptance_criteria_evidence
+    - files_changed
+    - verification
+    - blockers_or_risks
+    - next_recommended_step
+
+issue_packet_policy:
+  template_path: docs/agents/issue-packet-template.yaml
+  required_fields:
+    - issue
+    - branch
+    - objective
+    - acceptance_criteria
+    - scope
+    - bootstrap_context
+    - implementation_notes
+    - verification_plan
+    - handoff_contract
+    - result_contract
+  forbidden_payloads:
+    - full_orchestrator_transcript
+    - unrelated_repo_search_dumps
+    - speculative_solution_branches
+
+worker_result_policy:
+  template_path: docs/agents/worker-result-template.yaml
+  required_fields:
+    - issue
+    - branch
+    - status
+    - summary
+    - files_changed
+    - verification
+    - pr
+    - blockers
+    - next_recommended_step
+  forbidden_payloads:
+    - full_worker_transcript
+    - long_form_chain_of_thought
+    - repeated_search_output
+
 phases:
   - id: clarify_requirements
     goal: Resolve product intent and ambiguous decisions before implementation.
@@ -314,17 +391,41 @@ phases:
     exit_gate: setup_gate
 
   - id: issue_development_loop
-    goal: Process ready AFK issues until the PRD phase is complete or blocked.
+    goal: Orchestrate ready AFK issues through fresh issue-scoped worker sessions until the PRD phase is complete or blocked.
     loop:
       select_next_issue: issue_selection
       max_issue_gate_repair_attempts: 3
+      on_worker_boot_failure:
+        - create_handoff_with_attempts_and_failures
+        - stop_for_human_decision
+      on_invalid_worker_result:
+        - request_worker_result_repair_once
+        - create_handoff_with_attempts_and_failures
+        - stop_for_human_decision
       on_repair_attempts_exhausted:
         - run_diagnose_or_consult_oracle_when_debugging_or_architecture_blocks
         - create_handoff_with_attempts_and_failures
         - stop_for_human_decision
     per_issue_flow:
       - create_or_switch_issue_branch
-      - reread_issue_body_comments_labels_and_parent_prd
+      - build_issue_packet
+      - spawn_fresh_issue_worker
+      - wait_for_worker_result
+      - validate_worker_result_schema
+      - record_issue_handoff
+      - stop_for_pr_merge_review
+
+  - id: issue_worker_execution
+    goal: Execute one issue inside a fresh isolated worker session.
+    primary_skills:
+      - tdd
+      - karpathy-guidelines
+      - git-master
+    fallback_skills:
+      - diagnose
+    actions:
+      - read_issue_packet_only
+      - expand_context_on_demand
       - map_acceptance_criteria_to_planned_evidence
       - run_tdd_red_green_refactor_vertical_slices
       - run_changed_file_diagnostics
@@ -334,7 +435,16 @@ phases:
       - commit_if_all_gates_pass
       - push_branch_if_all_gates_pass
       - create_pr_if_all_gates_pass
-      - stop_for_pr_merge_review
+      - write_repo_handoff
+      - post_issue_or_pr_evidence_summary
+      - emit_structured_result_object
+      - terminate_worker_session
+    gates:
+      - tdd_gate
+      - diagnostics_and_build_gate
+      - surface_qa_gate
+      - review_gate
+      - git_gate
 
   - id: per_issue_tdd
     goal: Implement each issue through public-interface behavior tests.
@@ -378,7 +488,7 @@ phases:
       - security_gate
 
   - id: commit_push_and_create_pr
-    goal: Save verified local work and automatically publish the verified issue branch and PR.
+    goal: Inside the issue worker, save verified local work and automatically publish the verified issue branch and PR.
     primary_skills:
       - git-master
     actions:
@@ -425,13 +535,14 @@ phases:
       - review_gate
 
   - id: documentation_and_tracker_update
-    goal: Write durable completion evidence and update docs after verified behavior.
+    goal: Write durable issue-scoped handoff evidence and update docs after verified behavior.
     primary_skills:
       - grill-with-docs
       - write-a-skill
     actions:
       - update_context_or_adr_when_domain_decisions_changed
       - update_operator_docs_when commands_or_gates_changed
+      - write_issue_scoped_handoff_snapshot
       - post_issue_or_pr_evidence_summary
       - recommend_next_step_after_each_completed_unit
     gates:
@@ -449,6 +560,7 @@ stop_conditions:
     - destructive_action_required
     - three_materially_different_fix_attempts_failed
     - required_external_skill_or_tool_install_not_approved
+    - issue_worker_boot_or_result_contract_failure
     - pull_request_review_or_merge_requires_human_action
     - review_work_fails_with_blocking_issue_that_requires_human_decision
 
@@ -467,6 +579,23 @@ evidence_templates:
     - review_gate
     - risks_or_limitations
     - next_step_recommendation
+  repo_handoff_sections:
+    - issue_identity
+    - acceptance_criteria_evidence
+    - files_changed
+    - verification
+    - blockers_or_risks
+    - next_recommended_step
+  worker_result_object_fields:
+    - issue
+    - branch
+    - status
+    - summary
+    - files_changed
+    - verification
+    - pr
+    - blockers
+    - next_recommended_step
   pr_body_sections:
     - summary
     - linked_issue
