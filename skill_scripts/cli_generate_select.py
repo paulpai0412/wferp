@@ -1,10 +1,12 @@
 import argparse
+from dataclasses import asdict, replace
 import json
 from pathlib import Path
 
 from skill_scripts.database_client import DatabaseClient, DatabaseConfig
 from skill_scripts.data_dictionary import build_alias_index, build_field_index
 from skill_scripts.execution_validator import AggregateExpectation, ExecutionExpectation
+from skill_scripts.governed_query import run_governed_query
 from skill_scripts.relationship_graph import build_primary_key_map, infer_relationships
 from skill_scripts.schema_loader import load_schema_bundle
 from skill_scripts.sql_router import RoutingOptions, route_generate_sql
@@ -73,6 +75,8 @@ def main():
 
     parser.add_argument("--validate-execution", action="store_true")
     parser.add_argument("--allow-non-test-db-execution", action="store_true")
+    parser.add_argument("--governed-query-json", action="store_true")
+    parser.add_argument("--sample-rows-limit", type=int, default=5)
     parser.add_argument("--required-columns", default="")
     parser.add_argument("--min-rows", type=int, default=0)
     parser.add_argument("--max-rows", type=int, default=None)
@@ -106,6 +110,7 @@ def main():
             aggregates=aggregate_expectations,
         )
 
+        validate_execution = bool(args.validate_execution or args.governed_query_json)
         routing_options = RoutingOptions(
             mode=args.mode,
             llm_provider=args.llm_provider,
@@ -113,12 +118,22 @@ def main():
             llm_timeout_sec=args.llm_timeout_sec,
             min_confidence=args.llm_min_confidence,
             llm_repair_attempts=args.llm_repair_attempts,
-            validate_execution=args.validate_execution,
+            validate_execution=validate_execution,
             execution_expectation=execution_expectation,
             allow_non_test_execution=args.allow_non_test_db_execution,
         )
 
-        db_client = DatabaseClient(db_config) if args.validate_execution else None
+        db_client = DatabaseClient(db_config) if validate_execution else None
+        if args.governed_query_json:
+            governed_result = run_governed_query(
+                prompt=args.prompt,
+                bundle=bundle,
+                options=replace(routing_options, validate_execution=True),
+                db_client=db_client,
+                sample_rows_limit=args.sample_rows_limit,
+            )
+            print(json.dumps(asdict(governed_result), ensure_ascii=False))
+            return
         sql, meta = route_generate_sql(
             prompt=args.prompt,
             bundle=bundle,
