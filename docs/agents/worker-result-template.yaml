@@ -1,0 +1,53 @@
+schema_version: "1.0"
+kind: worker_result
+
+issue:
+  number: "<issue-number>"
+  title: "<issue-title>"
+  url: "<issue-url>"
+
+branch: "agent/issue-<issue-number>-<slug>"
+status: "<success|blocked|failed>"
+
+summary:
+  objective: "<goal from issue packet>"
+  outcome: "<what changed and why>"
+
+files_changed:
+  - path: "<repo-path>"
+    summary: "<why this file changed>"
+
+verification:
+  gates:
+    tdd_gate: "<pass|not_applicable|fail>"
+    diagnostics_and_build_gate: "<pass|fail>"
+    surface_qa_gate: "<pass|fail>"
+    review_gate: "<pass|not_applicable|fail>"
+    git_gate: "<pass|fail>"
+  automated_checks:
+    - command: "<command>"
+      result: "<pass|fail>"
+      evidence: "<short observed output summary>"
+  manual_qa:
+    surface: "<cli|library|api|browser|sql|docs>"
+    happy_path: "<what was exercised>"
+    refusal_or_error_path: "<what was exercised or n/a>"
+    result: "<observed outcome>"
+
+pr:
+  number: "<pr-number-or-none>"
+  url: "<pr-url-or-empty>"
+  ready_for_review: false
+
+blockers:
+  - "<blocking item or none>"
+
+next_recommended_step: "<single next action for orchestrator or human reviewer>"
+
+handoff:
+  repo_path: "docs/agents/handoffs/issue-<issue-number>.yaml"
+  github_summary_posted: false
+
+metadata:
+  worker: "<worker-session-or-agent-name>"
+  completed_at: "<ISO-8601 timestamp>"

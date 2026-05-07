@@ -1,0 +1,91 @@
+schema_version: "1.0"
+kind: issue_packet
+
+issue:
+  number: "<issue-number>"
+  title: "<issue-title>"
+  url: "<issue-url>"
+  labels:
+    - ready-for-agent
+  parent:
+    type: "<prd-or-parent-issue>"
+    reference: "<issue-number-or-doc-path>"
+
+branch:
+  name: "agent/issue-<issue-number>-<slug>"
+  base: "main"
+
+objective: "<single-sentence goal for this worker>"
+
+acceptance_criteria:
+  - id: "AC1"
+    text: "<observable behavior>"
+    evidence_hint: "<test, command, or manual surface check>"
+
+scope:
+  in:
+    - "<repo path or behavior in scope>"
+  out:
+    - "<explicit non-goal>"
+
+bootstrap_context:
+  required_reads:
+    - "AGENTS.md"
+    - "CONTEXT.md"
+    - "docs/agents/domain.md"
+    - "docs/agents/autonomous-development-workflow.yaml"
+  relevant_paths:
+    - "<file-or-directory-path>"
+  prior_handoff: "<docs/agents/handoffs/issue-N.yaml-or-none>"
+
+implementation_notes:
+  constraints:
+    - "<repo rule, dependency, or API limit>"
+  risks:
+    - "<known risk or empty-string-if-none>"
+  dependencies:
+    - "<blocking issue, PR, service, or none>"
+
+verification_plan:
+  required_gates:
+    - "diagnostics_and_build_gate"
+    - "surface_qa_gate"
+  automated_checks:
+    - command: "<command>"
+      success_criteria: "<what must pass>"
+  manual_qa:
+    surface: "<cli|library|api|browser|sql|docs>"
+    happy_path: "<what the worker must exercise>"
+    refusal_or_error_path: "<what edge/refusal path to exercise or n/a>"
+
+handoff_contract:
+  repo_path: "docs/agents/handoffs/issue-<issue-number>.yaml"
+  github_summary_required: true
+  required_sections:
+    - issue_identity
+    - acceptance_criteria_evidence
+    - files_changed
+    - verification
+    - blockers_or_risks
+    - next_recommended_step
+
+result_contract:
+  template_path: "docs/agents/worker-result-template.yaml"
+  allowed_statuses:
+    - success
+    - blocked
+    - failed
+  required_fields:
+    - issue
+    - branch
+    - status
+    - summary
+    - files_changed
+    - verification
+    - pr
+    - blockers
+    - next_recommended_step
+
+prepared_by:
+  actor: "<orchestrator-name>"
+  prepared_at: "<ISO-8601 timestamp>"
