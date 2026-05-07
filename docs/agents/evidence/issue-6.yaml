@@ -8,7 +8,7 @@ subject:
   pr_number: ""
   phase: ""
   branch: "agent/issue-6-published-dashboard-link-runtime"
-  sha: "262ed4895f88ed897617edfd3d9ec6c2d0fc0c5c"
+  sha: "35022e85e79b17583c768ff7ef37e12b04edd817"
 verifier:
   actor: "Sisyphus-Junior"
   actor_role: "pr_verifier"
