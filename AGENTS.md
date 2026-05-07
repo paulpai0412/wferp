@@ -78,8 +78,14 @@ python3 -m skill_scripts.cli_generate_select --prompt "查詢2026年的工程預
 - `_Source/` contains scripts plus generated JSON; do not delete generated JSON unless intentionally regenerating all dependent artifacts.
 - There is no verified GitHub Actions, pre-commit, lint, formatter, or typecheck pipeline checked in at repo level.
 
+## Agent Communication
+- Write repository documents, issues, PRDs, specs, and code comments in English unless the target file already requires another language.
+- Reply to the user in Traditional Chinese unless they explicitly request another language.
+- When following the Matt Pocock engineering skills workflow, after each completed unit of work, briefly state the recommended next step so the user can decide whether to continue, stop, or adjust direction.
+
 ## Instruction Sources
 - Install/run details: `INSTALLATION.md` and `OPERATIONS.md`.
 - Current system/architecture context: `docs/superpowers/specs/2026-05-05-wferp-system-specification.md` and `docs/superpowers/specs/2026-05-05-wferp-architecture-design.md`.
 - Issues and PRDs use GitHub repo `paulpai0412/wferp`; see `docs/agents/issue-tracker.md`.
 - Triage label vocabulary and domain-doc expectations are in `docs/agents/triage-labels.md` and `docs/agents/domain.md`.
+- Autonomous gated development workflow: `docs/agents/autonomous-development-workflow.yaml`.
