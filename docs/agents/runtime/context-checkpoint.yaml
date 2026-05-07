@@ -3,16 +3,16 @@ kind: context_checkpoint
 line_cap: 80
 
 subject:
-  issue_number: "<issue-number>"
-  branch: "agent/issue-<issue-number>-<slug>"
-  role: "<issue_worker|pr_verifier|release_worker>"
-  checkpoint_reason: "<45_percent_warning|50_percent_rotation|manual>"
+  issue_number: "1"
+  branch: "main"
+  role: "main_orchestrator"
+  checkpoint_reason: "post_issue_6_release"
 
 context_budget:
   warning_at_percent: 45
   stop_and_rotate_at_percent: 50
-  measured_percent_used: "<integer>"
-  must_rotate_now: false
+  measured_percent_used: "unknown"
+  must_rotate_now: true
 
 resume_policy:
   checkpoint_only_cross_session_resume: true
@@ -21,21 +21,49 @@ resume_policy:
 
 state:
   completed:
-    - "<compact completed fact>"
+    - "Issue #16 context budget and release_worker workflow merged via PR #17."
+    - "Issue #6 completed full worker -> verifier -> release_worker flow and merged via PR #18."
+    - "Fresh verifier evidence for issue #6 was published at docs/agents/evidence/issue-6-pr-18.yaml."
   in_progress:
-    - "<compact current task>"
+    - "Run PRD phase completeness audit because no ready-for-agent issue currently remains."
   next:
-    - "<single next action>"
+    - "Compare PRD #1 coverage against merged slices and decide whether to create more issues or enter phase_full_e2e_and_qa."
   blockers:
-    - "<blocker or none>"
+    - "none"
 
 refs:
-  issue_packet: "docs/agents/issue-packets/issue-<issue-number>.yaml"
-  worker_result: "<artifact-ref-or-empty>"
-  evidence_packet: "docs/agents/evidence/issue-<issue-number>-pr-<pr-number>.yaml"
-  handoff: "docs/agents/handoffs/issue-<issue-number>.yaml"
-  artifact_bundle: "<ci-or-local-artifact-ref-or-empty>"
+  issue_packet: ""
+  worker_result: "docs/agents/worker-results/issue-6.yaml"
+  evidence_packet: "docs/agents/evidence/issue-6-pr-18.yaml"
+  handoff: "docs/agents/handoffs/issue-6.yaml"
+  artifact_bundle: ""
+
+compact_payload:
+  active_target:
+    issue_number: "1"
+    branch: "main"
+    role: "main_orchestrator"
+    next_flow: "prd_phase_completeness_audit"
+  authoritative_refs:
+    - "docs/prds/2026-05-06-workflow-erp-dashboard-builder.md"
+    - "docs/agents/handoffs/issue-6.yaml"
+    - "docs/agents/autonomous-development-workflow.yaml"
+  state_snapshot:
+    completed:
+      - "Issue #16 context budget and release_worker workflow merged via PR #17."
+      - "Issue #6 merged and closed after fresh verifier and release summary."
+    in_progress:
+      - "Audit whether PRD #1 is fully covered by merged slices."
+    next:
+      - "If PRD coverage is incomplete, return to create_vertical_slice_issues."
+      - "If PRD coverage is complete, continue to phase_full_e2e_and_qa."
+    blockers:
+      - "none"
+  resume_rules:
+    - "Resume from checkpoint and compact payload, not full chat history."
+    - "Keep raw evidence as refs only; do not inline logs or traces."
+  immediate_next_action: "Run PRD phase completeness audit before selecting any new issue flow."
 
 metadata:
-  updated_by: "<agent-or-session>"
-  updated_at: "<ISO-8601 timestamp>"
+  updated_by: "Hephaestus"
+  updated_at: "2026-05-07T17:15:00+08:00"
