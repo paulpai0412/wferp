@@ -276,6 +276,13 @@ issue_selection:
   ordering:
     - dependency_topological_order
     - oldest_ready_issue_first
+  execution:
+    mode: serial_single_issue
+    allow_parallel_ready_issues: false
+    rationale:
+      - one_issue_one_branch_one_commit_one_pr
+      - fresh_worker_and_verifier_session_per_issue
+      - release_worker_cleanup_tracks_one_selected_issue_at_a_time
   on_no_ready_issue:
     - run_prd_phase_completeness_audit
   skip_when:
@@ -305,6 +312,25 @@ branch_and_pr_policy:
     final_qa_statement_requires_verifier_packet: true
   merge_policy:
     requires_human_review_and_merge_approval: true
+    runtime_override_policy:
+      default_mode: human_required
+      runtime_override_allowed: true
+      allowed_override_modes:
+        - bypass_approval
+      set_only_at_workflow_start: true
+      mutable_after_start: false
+      scope: workflow_run_only
+      applies_to: all_prs_created_by_this_run
+      affects_stage: release_worker_only
+      bypasses:
+        - human_merge_approval_policy_satisfied
+      does_not_bypass:
+        - verifier_packet_status_pass
+        - required_checks_pass
+        - pr_is_mergeable
+        - review_gate
+        - surface_qa_gate
+        - diagnostics_and_build_gate
 
 context_budget_policy:
   measurement: percent_of_available_session_context_used
@@ -370,6 +396,14 @@ artifact_caps_policy:
 release_worker_policy:
   role: release_worker
   purpose: Narrow post-verifier PR release and issue-close executor.
+  merge_approval_policy:
+    default_mode: human_required
+    runtime_override_source: workflow_start_and_checkpoint
+    bypass_approval_requires:
+      - approval_override_mode_is_bypass_approval
+      - override_scope_is_workflow_run_only
+      - override_was_set_at_workflow_start
+      - override_was_not_mutated_after_start
   may_run_only_after:
     - verifier_packet_status_pass
     - pr_is_mergeable
@@ -378,19 +412,79 @@ release_worker_policy:
   allowed_actions:
     - confirm_pr_mergeability_and_required_checks
     - merge_approved_pull_request
+    - run_post_merge_workspace_hygiene
     - close_linked_issue_after_merge
     - post_compact_release_summary_with_evidence_packet_ref
+    - post_merge_workspace_hygiene_summary
+  execution_order:
+    - merge_approved_pull_request
+    - run_post_merge_workspace_hygiene
+    - close_linked_issue_after_merge
+    - post_compact_release_summary_with_evidence_packet_ref
+    - post_merge_workspace_hygiene_summary
+  close_issue_only_after:
+    - post_merge_workspace_hygiene_passes
+  approval_gate_evaluation:
+    human_required_mode:
+      require:
+        - verifier_packet_status_pass
+        - pr_is_mergeable
+        - required_checks_pass
+        - human_merge_approval_policy_satisfied
+    bypass_approval_mode:
+      require:
+        - verifier_packet_status_pass
+        - pr_is_mergeable
+        - required_checks_pass
+      skip:
+        - human_merge_approval_policy_satisfied
+  post_merge_workspace_hygiene:
+    scope: primary_workspace_and_issue_worktree_hygiene_only
+    primary_workspace:
+      inspect_current_branch_first: true
+      if_not_main_and_clean: switch_to_main
+      if_not_main_and_dirty: create_wip_branch_and_stash_then_switch_to_main
+      if_main_and_dirty: create_wip_branch_and_stash
+      if_main_and_clean: no_branch_restore_needed
+      wip_branch_name_template: "agent/wip/post-merge-issue-{issue_number}-{yyyyMMdd-HHmm}"
+      stash_message_template: "post-merge hygiene preserve issue-{issue_number} from {source_branch}"
+      final_git_status_must_be_clean: true
+    issue_worktree:
+      remove_when_pr_merged_and_clean: true
+      block_when_dirty_or_unknown: true
+    summary:
+      checkpoint_fields:
+        - primary_workspace_branch_before
+        - primary_workspace_branch_after
+        - dirty_state_detected
+        - wip_branch_created
+        - stash_created
+        - workspace_clean_after
+        - issue_worktree_removed
+        - cleanup_status
+        - blocked_reason
+      github_comment_uses_same_fields: true
+      blocked_reason_enum:
+        - dirty_workspace_preserve_failed
+        - switch_main_failed
+        - fast_forward_main_failed
+        - worktree_remove_failed
+        - workspace_not_clean_after_cleanup
+        - issue_worktree_dirty_blocked
   forbidden_actions:
     - implement_issue_scope
     - run_final_acceptance_qa
     - bypass_required_checks_or_reviews
     - merge_without_required_human_approval
     - close_issue_before_pr_merge
+    - modify_issue_scope_files_during_cleanup
   blocked_when:
     - verifier_packet_missing_or_not_pass
     - pr_not_mergeable
     - required_checks_pending_or_failed
     - human_approval_required_but_absent
+    - post_merge_workspace_hygiene_failed
+    - issue_worktree_dirty_or_unknown
 
 session_isolation_policy:
   main_agent_role: orchestrator_only
@@ -424,6 +518,11 @@ session_isolation_policy:
     use_fresh_worker_session_per_issue: true
     use_fresh_verifier_session_per_pr: true
     use_fresh_verifier_session_per_phase: true
+    allow_parallel_ready_issues: false
+    ultrawork_policy:
+      allowed_inside_single_issue_worker_or_single_verifier: true
+      forbid_orchestrator_multi_issue_ultrawork: true
+      requires_explicit_concurrency_policy_before_parallel_issue_execution: true
     worker_reads_issue_packet_first: true
     worker_must_terminate_after_issue: true
     worker_returns_structured_result_only: true
@@ -816,6 +915,21 @@ evidence_templates:
     - review_gate
     - risks_or_limitations
     - next_step_recommendation
+  post_merge_workspace_hygiene_comment_fields:
+    - primary_workspace_branch_before
+    - primary_workspace_branch_after
+    - dirty_state_detected
+    - wip_branch_created
+    - stash_created
+    - workspace_clean_after
+    - issue_worktree_removed
+    - cleanup_status
+    - blocked_reason
+  release_summary_override_fields:
+    - merge_approval_mode
+    - human_approval_skipped
+    - override_source
+    - override_scope
   repo_handoff_sections:
     - issue_identity
     - acceptance_criteria_evidence
