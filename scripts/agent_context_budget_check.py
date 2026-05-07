@@ -13,7 +13,12 @@ LINE_CAPS = {
     "docs/agents/evidence-packet-template.yaml": 60,
     "docs/agents/runtime/context-checkpoint.yaml": 80,
     "docs/agents/issue-packets/issue-16.yaml": 80,
+    "docs/agents/issue-packets/issue-20.yaml": 80,
+    "docs/agents/evidence/issue-2-pr-8.yaml": 60,
+    "docs/agents/worker-results/issue-20.yaml": 80,
+    "docs/agents/handoffs/issue-2.yaml": 35,
     "docs/agents/handoffs/issue-16.yaml": 35,
+    "docs/agents/handoffs/issue-20.yaml": 35,
 }
 
 REQUIRED_TEXT = {
