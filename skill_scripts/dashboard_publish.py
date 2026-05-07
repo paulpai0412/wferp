@@ -1,0 +1,159 @@
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import cast
+
+from skill_scripts.dashboard_canvas import load_dashboard_canvas
+from skill_scripts.design_template_catalog import DesignTemplateSelection, apply_design_template_to_canvas_preview
+
+
+AuditEvent = dict[str, object]
+
+
+@dataclass(frozen=True)
+class DashboardDraft:
+    dashboard_id: str
+    canvas_payload: Mapping[str, object]
+    template_selection: DesignTemplateSelection
+    state: str = "draft"
+    audit_events: list[AuditEvent] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class PublishedDashboard:
+    dashboard_id: str
+    version: int
+    payload: dict[str, object]
+    audit_events: list[AuditEvent] = field(default_factory=list)
+
+
+def preview_dashboard_draft(draft: DashboardDraft) -> dict[str, object]:
+    dashboard_id = _dashboard_id(draft.dashboard_id)
+    canvas = load_dashboard_canvas(draft.canvas_payload)
+    preview = apply_design_template_to_canvas_preview(canvas, draft.template_selection)
+    return {
+        "dashboard_id": dashboard_id,
+        "state": draft.state,
+        "template": preview["template"],
+        "canvas": preview["canvas"],
+    }
+
+
+def approve_dashboard_draft(draft: DashboardDraft, approver: str) -> DashboardDraft:
+    if draft.state not in {"draft", "reapproval_required"}:
+        raise RuntimeError(f"DASHBOARD_DRAFT_NOT_APPROVABLE:{draft.state}")
+    approver_id = _required_text(approver, "DASHBOARD_APPROVER_REQUIRED")
+    event: AuditEvent = {
+        "event": "dashboard_final_approved",
+        "dashboard_id": _dashboard_id(draft.dashboard_id),
+        "state": "approved",
+        "approver": approver_id,
+    }
+    return DashboardDraft(
+        dashboard_id=draft.dashboard_id,
+        canvas_payload=draft.canvas_payload,
+        template_selection=draft.template_selection,
+        state="approved",
+        audit_events=[*_audit_events(draft.audit_events), event],
+    )
+
+
+def reject_dashboard_draft(draft: DashboardDraft, approver: str, reason: str) -> DashboardDraft:
+    if draft.state not in {"draft", "reapproval_required"}:
+        raise RuntimeError(f"DASHBOARD_DRAFT_NOT_REJECTABLE:{draft.state}")
+    approver_id = _required_text(approver, "DASHBOARD_APPROVER_REQUIRED")
+    rejection_reason = _required_text(reason, "DASHBOARD_REJECTION_REASON_REQUIRED")
+    event: AuditEvent = {
+        "event": "dashboard_final_rejected",
+        "dashboard_id": _dashboard_id(draft.dashboard_id),
+        "state": "rejected",
+        "approver": approver_id,
+        "reason": rejection_reason,
+    }
+    return DashboardDraft(
+        dashboard_id=draft.dashboard_id,
+        canvas_payload=draft.canvas_payload,
+        template_selection=draft.template_selection,
+        state="rejected",
+        audit_events=[*_audit_events(draft.audit_events), event],
+    )
+
+
+def mark_dashboard_data_meaning_changed(draft: DashboardDraft, reason: str) -> DashboardDraft:
+    change_reason = _required_data_meaning_reason(reason)
+    event: AuditEvent = {
+        "event": "dashboard_reapproval_required",
+        "dashboard_id": _dashboard_id(draft.dashboard_id),
+        "state": "reapproval_required",
+        "reason": change_reason,
+    }
+    return DashboardDraft(
+        dashboard_id=draft.dashboard_id,
+        canvas_payload=draft.canvas_payload,
+        template_selection=draft.template_selection,
+        state="reapproval_required",
+        audit_events=[*_audit_events(draft.audit_events), event],
+    )
+
+
+def publish_dashboard(draft: DashboardDraft, previous: PublishedDashboard | None = None) -> PublishedDashboard:
+    if draft.state != "approved":
+        if draft.state == "reapproval_required":
+            raise RuntimeError("DASHBOARD_REAPPROVAL_REQUIRED")
+        raise RuntimeError("DASHBOARD_FINAL_APPROVAL_REQUIRED")
+    dashboard_id = _dashboard_id(draft.dashboard_id)
+    version = 1 if previous is None else previous.version + 1
+    preview = preview_dashboard_draft(draft)
+    payload: dict[str, object] = {
+        "dashboard_id": dashboard_id,
+        "version": version,
+        "state": "published",
+        "template": _copy_mapping(cast(Mapping[str, object], preview["template"])),
+        "canvas": _copy_mapping(cast(Mapping[str, object], preview["canvas"])),
+    }
+    event: AuditEvent = {
+        "event": "dashboard_published",
+        "dashboard_id": dashboard_id,
+        "version": version,
+        "state": "published",
+    }
+    return PublishedDashboard(
+        dashboard_id=dashboard_id,
+        version=version,
+        payload=payload,
+        audit_events=[*_audit_events(draft.audit_events), event],
+    )
+
+
+def _dashboard_id(value: str) -> str:
+    return _required_text(value, "DASHBOARD_ID_REQUIRED")
+
+
+def _required_text(value: str, code: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        raise RuntimeError(code)
+    return text
+
+
+def _required_data_meaning_reason(value: str) -> str:
+    reason = _required_text(value, "DASHBOARD_DATA_MEANING_CHANGE_REASON_REQUIRED")
+    if reason not in {"sql_changed", "dashboard_data_source_changed", "query_semantics_changed"}:
+        raise RuntimeError(f"DASHBOARD_DATA_MEANING_CHANGE_NOT_SUPPORTED:{reason}")
+    return reason
+
+
+def _audit_events(events: list[AuditEvent]) -> list[AuditEvent]:
+    return [_copy_mapping(event) for event in events]
+
+
+def _copy_mapping(value: Mapping[str, object]) -> dict[str, object]:
+    copied: dict[str, object] = {}
+    for key, item in value.items():
+        if isinstance(item, dict):
+            copied[key] = _copy_mapping(cast(Mapping[str, object], item))
+        elif isinstance(item, list):
+            values = cast(list[object], item)
+            copied[key] = [_copy_mapping(cast(Mapping[str, object], entry)) if isinstance(entry, dict) else entry for entry in values]
+        else:
+            copied[key] = item
+    return copied
