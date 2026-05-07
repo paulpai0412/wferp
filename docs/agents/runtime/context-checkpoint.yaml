@@ -3,10 +3,10 @@ kind: context_checkpoint
 line_cap: 80
 
 subject:
-  issue_number: "20"
-  branch: "agent/issue-20-reconstruct-governed-query-traceability"
+  issue_number: "1"
+  branch: "main"
   role: "main_orchestrator"
-  checkpoint_reason: "issue_20_verifier_passed_pending_merge"
+  checkpoint_reason: "prd_audit_blocked_and_parallel_issue_policy_update"
 
 context_budget:
   warning_at_percent: 45
@@ -19,37 +19,60 @@ resume_policy:
   do_not_import_full_prior_transcript: true
   raw_evidence_policy: "index_only; raw logs/traces stay in artifact bundle"
 
+runtime_controls:
+  approval_override_mode: "none"
+  default_merge_approval_mode: "human_required"
+  set_only_at_workflow_start: true
+  mutable_after_start: false
+  scope: "workflow_run_only"
+  applies_to: "all_prs_created_by_this_run"
+  affects_stage: "release_worker_only"
+  override_source: "workflow_start"
+  human_approval_skipped: false
+
 state:
   completed:
     - "Issue #16 context budget and release_worker workflow merged via PR #17."
     - "Issue #6 completed full worker -> verifier -> release_worker flow and merged via PR #18."
-    - "Issue #20 rebuilt repo-local issue #2 traceability and published PR #21 verifier artifacts."
+    - "Issue #20 rebuilt repo-local issue #2 traceability and merged via PR #21 (acb13e1)."
+    - "Primary workspace was restored to main after preserving dirty state in agent/wip-prd-audit-normalization and stash@{0}."
   in_progress:
-    - "Await human merge approval so release_worker can merge PR #21 and close issue #20."
+    - "Workflow docs are being updated to state that parallel AFK issue execution stays serial and merge approval defaults to human_required with workflow-start bypass support."
   next:
-    - "Merge PR #21, close issue #20, and record the compact release summary."
-    - "Rerun PRD #1 completeness audit using docs/agents/handoffs/issue-2.yaml and docs/agents/evidence/issue-2-pr-8.yaml."
+    - "Refresh the PRD #1 audit after this policy update and keep it blocked until AC17 has phase evidence."
+    - "Commit the workflow-policy edits on a dedicated branch and open a PR."
   blockers:
-    - "Historical PR #8 raw worker/verifier artifacts were not preserved before workflow packet enforcement."
+    - "PRD #1 completeness audit remains blocked because AC17 still lacks phase_full_e2e_and_qa evidence."
 
 refs:
-  issue_packet: "docs/agents/issue-packets/issue-20.yaml"
-  worker_result: "docs/agents/worker-results/issue-20.yaml"
+  issue_packet: "docs/agents/prd-issue-1-phase-audit.yaml"
+  worker_result: "docs/agents/handoffs/issue-20.yaml"
   evidence_packet: "docs/agents/evidence/issue-20-pr-21.yaml"
-  handoff: "docs/agents/handoffs/issue-20.yaml"
+  handoff: "docs/agents/handoffs/issue-2.yaml"
   artifact_bundle: "https://github.com/paulpai0412/wferp/pull/21"
 
 compact_payload:
-  active_target: {issue_number: "20", branch: "agent/issue-20-reconstruct-governed-query-traceability", role: "main_orchestrator", next_flow: "release_worker"}
-  authoritative_refs: ["docs/agents/issue-packets/issue-20.yaml", "docs/agents/evidence/issue-20-pr-21.yaml", "docs/agents/handoffs/issue-2.yaml", "docs/agents/evidence/issue-2-pr-8.yaml"]
+  active_target: {issue_number: "1", branch: "main", role: "main_orchestrator", next_flow: "prd_phase_completeness_audit"}
+  authoritative_refs: ["docs/agents/prd-issue-1-phase-audit.yaml", "docs/agents/autonomous-development-workflow.yaml", "docs/agents/handoffs/issue-2.yaml", "docs/agents/evidence/issue-20-pr-21.yaml"]
   state_snapshot:
-    completed: ["Issue #2 traceability gap is now indexed locally."]
-    in_progress: ["PR #21 is verifier-passed and waiting for human merge approval."]
-    next: ["After merge, rerun the PRD #1 completeness audit."]
-    blockers: ["No fresh historical worker/verifier raw logs exist for PR #8."]
+    completed: ["PR #21 merged and issue #20 closed; primary workspace is back on main."]
+    in_progress: ["Serial issue execution and bypass_approval limits are being codified in workflow docs."]
+    next: ["Resume PRD #1 completeness audit after the policy update lands."]
+    blockers: ["AC17 still lacks phase-level E2E evidence."]
   resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
-  immediate_next_action: "Obtain human merge approval for PR #21, then run release_worker and rerun the PRD #1 audit."
+  immediate_next_action: "Finish the serial-issue policy update, then resume the PRD #1 audit from docs/agents/prd-issue-1-phase-audit.yaml."
+
+post_merge_workspace_hygiene:
+  primary_workspace_branch_before: "agent/issue-6-published-dashboard-link-runtime"
+  primary_workspace_branch_after: "main"
+  dirty_state_detected: true
+  wip_branch_created: "agent/wip-prd-audit-normalization"
+  stash_created: "stash@{0}"
+  workspace_clean_after: true
+  issue_worktree_removed: "false"
+  cleanup_status: "pass"
+  blocked_reason: "none"
 
 metadata:
   updated_by: "Hephaestus"
-  updated_at: "2026-05-07T19:35:00+08:00"
+  updated_at: "2026-05-07T23:25:00+08:00"
