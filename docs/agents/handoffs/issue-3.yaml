@@ -1,0 +1,50 @@
+schema_version: "1.0"
+kind: issue_handoff
+issue_identity:
+  number: "3"
+  title: "Chart Spec authoring and validation"
+  url: "https://github.com/paulpai0412/wferp/issues/3"
+  branch: "agent/issue-3-chart-spec-authoring-and-validation"
+acceptance_criteria_evidence:
+  AC1:
+    status: pass
+    evidence: "test_table_chart_spec_requires_approved_query_result rejects unapproved GovernedQueryResult and accepts approved_for_chart_spec."
+  AC2:
+    status: pass
+    evidence: "Public author_chart_spec payloads cover table, kpi_card, bar, and line chart types."
+  AC3:
+    status: pass
+    evidence: "Validation covers chart type, field mappings, sort direction, title, hex color, number_format, and date_format."
+  AC4:
+    status: pass
+    evidence: "test_invalid_mappings_are_rejected_with_clear_errors and test_render_preview_revalidates_public_chart_spec_objects cover unsupported chart type, missing fields, unsupported fields, invalid sort/color, invalid numeric formatting, and direct public ChartSpec revalidation."
+  AC5:
+    status: pass
+    evidence: "render_chart_preview produces table rows, KPI value/label, and ordered bar/line preview data from approved sample_rows."
+  AC6:
+    status: pass
+    evidence: "pytest tests/skill_scripts/test_chart_spec.py -q passes with behavior coverage for valid and invalid MVP specs."
+files_changed:
+  - "skill_scripts/chart_spec.py"
+  - "tests/skill_scripts/test_chart_spec.py"
+  - "docs/agents/handoffs/issue-3.yaml"
+verification:
+  diagnostics:
+    - command: "lsp_diagnostics skill_scripts/chart_spec.py"
+      result: "pass: no diagnostics"
+    - command: "lsp_diagnostics tests/skill_scripts/test_chart_spec.py"
+      result: "pass: no diagnostics"
+  automated:
+    - command: "python3 -m py_compile skill_scripts/chart_spec.py tests/skill_scripts/test_chart_spec.py"
+      result: "pass"
+    - command: "python3 -m pytest tests/skill_scripts/test_chart_spec.py -q"
+      result: "pass: 9 passed"
+    - command: "python3 -m pytest tests/skill_scripts/ -q"
+      result: "pass: 74 passed"
+  manual_qa:
+    - surface: "library"
+      command: "minimal python driver using author_chart_spec/render_chart_preview"
+      result: "pass: all four chart types rendered; numeric sort preserved; public ChartSpec revalidation, unapproved, and unsupported-field paths refused"
+blockers_or_risks:
+  - "No blocker. This is library-only MVP surface; no dashboard UI or persistence was added by scope."
+next_recommended_step: "Main session should inspect the commit and decide whether to push/create PR for issue #3."
