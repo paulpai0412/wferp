@@ -1,0 +1,97 @@
+schema_version: "1.0"
+kind: evidence_packet
+
+subject:
+  type: "issue_pr"
+  issue_number: "4"
+  pr_number: "local"
+  phase: "dashboard-builder-mvp"
+  branch: "agent/issue-4-design-template-catalog-and-selection"
+  sha: "local-uncommitted"
+
+verifier:
+  actor: "Hephaestus"
+  started_at: "2026-05-07T13:12:00+08:00"
+  completed_at: "2026-05-07T13:12:00+08:00"
+
+status: "pass"
+
+acceptance_criteria_matrix:
+  - ac_id: "AC1"
+    status: "pass"
+    evidence_ref: "test_catalog_presents_deterministic_generic_design_template_options"
+    note: "The catalog exposes three curated generic options with DESIGN.md-style tokens for dashboard styling."
+  - ac_id: "AC2"
+    status: "pass"
+    evidence_ref: "test_catalog_options_do_not_use_source_brand_names_as_official_names"
+    note: "Official option names are generic descriptive labels and avoid copied source brand names."
+  - ac_id: "AC3"
+    status: "pass"
+    evidence_ref: "test_allowed_design_template_can_be_selected_for_dashboard_preview"
+    note: "The public selection API accepts one allowed Design Template for a Dashboard preview."
+  - ac_id: "AC4"
+    status: "pass"
+    evidence_ref: "manual-library-driver:design-template-canvas-preview"
+    note: "Selected Design Template payload is applied beside the Dashboard Canvas preview payload."
+  - ac_id: "AC5"
+    status: "pass"
+    evidence_ref: "test_switching_design_templates_replaces_the_active_template"
+    note: "Switching templates returns a replacement active selection without blending the prior template."
+  - ac_id: "AC6"
+    status: "pass"
+    evidence_ref: "command:pytest-design-template-catalog"
+    note: "Focused tests cover allowed templates, generic naming, one-template selection, replacement, and deterministic payloads."
+
+gates:
+  diagnostics_and_build_gate:
+    status: "pass"
+    evidence_ref: "command:py-compile-lsp-and-pytest"
+  surface_qa_gate:
+    status: "pass"
+    evidence_ref: "manual-library-driver:design-template-canvas-preview"
+  review_gate:
+    status: "pass"
+    evidence_ref: "review-work:5-agent-pass-after-canonicalization-fix"
+  security_gate:
+    status: "pass"
+    evidence_ref: "diff-review:no-secrets-or-write-sql-surface"
+
+artifact_manifest:
+  bundle_ref: "local-session-evidence:issue-4"
+  retention: "compact summary retained in repo; raw command output not duplicated in main agent context"
+  items:
+    - id: "command:py-compile-lsp-and-pytest"
+      kind: "summary"
+      path: "docs/agents/handoffs/issue-4.yaml"
+      sha256: ""
+      description: "Changed-file diagnostics, py_compile, focused tests, related tests, and full skill_scripts tests passed; LSP has a stale import-index warning for the new untracked module while Python import succeeds."
+    - id: "command:pytest-design-template-catalog"
+      kind: "summary"
+      path: "docs/agents/handoffs/issue-4.yaml"
+      sha256: ""
+      description: "Focused Design Template Catalog pytest run passed with 7 tests."
+    - id: "command:pytest-skill-scripts"
+      kind: "summary"
+      path: "docs/agents/handoffs/issue-4.yaml"
+      sha256: ""
+      description: "Full skill_scripts pytest suite passed with 89 tests."
+    - id: "manual-library-driver:design-template-canvas-preview"
+      kind: "driver-output"
+      path: "docs/agents/handoffs/issue-4.yaml"
+      sha256: ""
+      description: "Library driver exercised template listing, selection, canvas preview application, template switching, and invalid template refusal."
+    - id: "review-work:5-agent-pass-after-canonicalization-fix"
+      kind: "summary"
+      path: "docs/agents/handoffs/issue-4.yaml"
+      sha256: ""
+      description: "Goal, QA, security, context, and code-quality reviews passed after fixing forged-selection canonicalization."
+
+compact_summary:
+  outcome: "Issue #4 Design Template catalog and selection passed all recorded acceptance criteria as a library-only tracer bullet."
+  automated_checks: "py_compile, focused Design Template tests, related Chart/Canvas tests, and full skill_scripts tests passed."
+  manual_qa: "Library driver exercised happy-path template application, replacement, canonicalization, and invalid-template refusal."
+  risks_or_limitations:
+    - "Library-only tracer bullet; browser UI/CLI integration remains out of scope."
+    - "LSP reports stale missing-import diagnostics for the new untracked module, but direct file diagnostics, Python import, py_compile, and pytest all pass."
+
+next_recommended_step: "After issue #4 review/merge, continue with issue #5 final approval and immutable publish."
