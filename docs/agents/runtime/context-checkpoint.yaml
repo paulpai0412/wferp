@@ -3,15 +3,15 @@ kind: context_checkpoint
 line_cap: 80
 
 subject:
-  issue_number: "<issue-number>"
-  branch: "agent/issue-<issue-number>-<slug>"
-  role: "<issue_worker|pr_verifier|release_worker>"
-  checkpoint_reason: "<45_percent_warning|50_percent_rotation|manual>"
+  issue_number: "20"
+  branch: "agent/issue-20-reconstruct-governed-query-traceability"
+  role: "main_orchestrator"
+  checkpoint_reason: "issue_20_traceability_repair_ready_for_verification"
 
 context_budget:
   warning_at_percent: 45
   stop_and_rotate_at_percent: 50
-  measured_percent_used: "<integer>"
+  measured_percent_used: "unknown"
   must_rotate_now: false
 
 resume_policy:
@@ -21,21 +21,34 @@ resume_policy:
 
 state:
   completed:
-    - "<compact completed fact>"
+    - "Issue #20 rebuilt compact repo-local issue #2 traceability from GitHub issue #2, PR #8, and merged files."
+    - "Added issue #2 handoff/evidence artifacts plus issue #20 worker-result/handoff packets."
   in_progress:
-    - "<compact current task>"
+    - "Await fresh PR verifier review for the workflow self-repair branch."
   next:
-    - "<single next action>"
+    - "Review the issue #20 PR and emit a verifier-owned evidence packet for the workflow slice."
+    - "Resume PRD #1 completeness audit using docs/agents/handoffs/issue-2.yaml and docs/agents/evidence/issue-2-pr-8.yaml."
   blockers:
-    - "<blocker or none>"
+    - "Historical PR #8 raw worker/verifier artifacts were not preserved before workflow packet enforcement."
 
 refs:
-  issue_packet: "docs/agents/issue-packets/issue-<issue-number>.yaml"
-  worker_result: "<artifact-ref-or-empty>"
-  evidence_packet: "docs/agents/evidence/issue-<issue-number>-pr-<pr-number>.yaml"
-  handoff: "docs/agents/handoffs/issue-<issue-number>.yaml"
-  artifact_bundle: "<ci-or-local-artifact-ref-or-empty>"
+  issue_packet: "docs/agents/issue-packets/issue-20.yaml"
+  worker_result: "docs/agents/worker-results/issue-20.yaml"
+  evidence_packet: "docs/agents/evidence/issue-2-pr-8.yaml"
+  handoff: "docs/agents/handoffs/issue-20.yaml"
+  artifact_bundle: "https://github.com/paulpai0412/wferp/pull/8"
+
+compact_payload:
+  active_target: {issue_number: "20", branch: "agent/issue-20-reconstruct-governed-query-traceability", role: "main_orchestrator", next_flow: "pr_verifier_execution"}
+  authoritative_refs: ["docs/agents/issue-packets/issue-20.yaml", "docs/agents/handoffs/issue-2.yaml", "docs/agents/evidence/issue-2-pr-8.yaml"]
+  state_snapshot:
+    completed: ["Issue #2 traceability gap is now indexed locally."]
+    in_progress: ["Waiting for the issue #20 verifier packet."]
+    next: ["Use the reconstructed issue #2 refs during the next PRD completeness audit pass."]
+    blockers: ["No fresh historical worker/verifier raw logs exist for PR #8."]
+  resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
+  immediate_next_action: "Run fresh PR verification for issue #20 and then resume the PRD #1 audit."
 
 metadata:
-  updated_by: "<agent-or-session>"
-  updated_at: "<ISO-8601 timestamp>"
+  updated_by: "Sisyphus-Junior"
+  updated_at: "2026-05-07T18:45:00+08:00"
