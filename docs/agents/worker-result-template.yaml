@@ -27,12 +27,18 @@ verification:
   automated_checks:
     - command: "<command>"
       result: "<pass|fail>"
-      evidence: "<short observed output summary>"
+      evidence_ref: "<artifact-id, check-run-url, or local artifact path>"
+      summary: "<short observed output summary, no raw log>"
   manual_qa:
     surface: "<cli|library|api|browser|sql|docs>"
     happy_path: "<what was exercised>"
     refusal_or_error_path: "<what was exercised or n/a>"
     result: "<observed outcome>"
+
+evidence_packet_refs:
+  worker_artifact_bundle: "<ci-artifact-url-or-local-artifact-path-or-empty>"
+  verifier_packet: "docs/agents/evidence/issue-<issue-number>-pr-<pr-number>.yaml"
+  raw_evidence_policy: "stored_outside_main_agent_context"
 
 pr:
   number: "<pr-number-or-none>"

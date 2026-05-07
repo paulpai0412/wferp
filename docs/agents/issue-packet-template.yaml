@@ -64,13 +64,15 @@ handoff_contract:
   required_sections:
     - issue_identity
     - acceptance_criteria_evidence
-    - files_changed
-    - verification
+    - compact_verification_summary
+    - evidence_packet_refs
+    - files_changed_summary
     - blockers_or_risks
     - next_recommended_step
 
 result_contract:
   template_path: "docs/agents/worker-result-template.yaml"
+  verifier_template_path: "docs/agents/evidence-packet-template.yaml"
   allowed_statuses:
     - success
     - blocked
@@ -85,6 +87,12 @@ result_contract:
     - pr
     - blockers
     - next_recommended_step
+    - evidence_packet_refs
+  forbidden_payloads:
+    - full_worker_transcript
+    - full_verifier_transcript
+    - raw_test_logs
+    - verbose_manual_qa_transcript
 
 prepared_by:
   actor: "<orchestrator-name>"

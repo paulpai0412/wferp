@@ -260,9 +260,9 @@ branch_and_pr_policy:
     automatic_after_all_gates_pass: true
     body_must_include:
       - linked_issue
-      - acceptance_criteria_evidence_table
-      - tests_and_e2e_commands
-      - manual_qa_notes
+      - compact_acceptance_criteria_matrix
+      - verification_summary_and_artifact_refs
+      - manual_qa_result_summary
       - review_gate_result
       - known_limitations_or_pre_existing_failures
   merge_policy:
@@ -277,11 +277,15 @@ session_isolation_policy:
   main_agent_must_not:
     - implement_general_issue_scope
     - retain_full_worker_transcript_across_issues
+    - run_issue_or_phase_qa_except_contract_validation
   issue_execution:
     use_fresh_worker_session_per_issue: true
+    use_fresh_verifier_session_per_pr: true
+    use_fresh_verifier_session_per_phase: true
     worker_reads_issue_packet_first: true
     worker_must_terminate_after_issue: true
     worker_returns_structured_result_only: true
+    verifier_returns_evidence_packet_only: true
     allow_specialist_helpers:
       - explore
       - librarian
@@ -305,8 +309,9 @@ handoff_policy:
   include_sections:
     - issue_identity
     - acceptance_criteria_evidence
-    - files_changed
-    - verification
+    - compact_verification_summary
+    - evidence_packet_refs
+    - files_changed_summary
     - blockers_or_risks
     - next_recommended_step
 
@@ -340,10 +345,39 @@ worker_result_policy:
     - pr
     - blockers
     - next_recommended_step
+    - evidence_packet_refs
   forbidden_payloads:
     - full_worker_transcript
     - long_form_chain_of_thought
     - repeated_search_output
+
+evidence_packet_policy:
+  template_path: docs/agents/evidence-packet-template.yaml
+  purpose: >
+    Keep verbose verification evidence outside the main agent context while
+    preserving an auditable chain from acceptance criteria to raw artifacts.
+  required_for:
+    - every_issue_pr_verifier_run
+    - every_phase_cross_issue_verifier_run
+  storage_policy:
+    repo_handoff_keeps: compact_summary_and_refs_only
+    raw_evidence_kept_in: ci_or_local_artifact_bundle
+    main_agent_consumes: evidence_packet_index_only
+  required_fields:
+    - subject
+    - verifier
+    - status
+    - acceptance_criteria_matrix
+    - gates
+    - artifact_manifest
+    - compact_summary
+    - next_recommended_step
+  forbidden_payloads:
+    - full_command_output
+    - full_test_logs
+    - screenshot_binary_or_base64
+    - verbose_browser_trace
+    - full_verifier_transcript
 
 phases:
   - id: clarify_requirements
@@ -412,6 +446,9 @@ phases:
       - spawn_fresh_issue_worker
       - wait_for_worker_result
       - validate_worker_result_schema
+      - spawn_fresh_pr_verifier
+      - wait_for_evidence_packet
+      - validate_evidence_packet_schema
       - record_issue_handoff
       - stop_for_pr_merge_review
 
@@ -487,6 +524,25 @@ phases:
       - review_gate
       - security_gate
 
+  - id: pr_verifier_execution
+    goal: Independently verify one issue PR from its worker result, diff, and issue packet without importing verbose evidence into the main agent context.
+    policy: fresh_verifier_worker_per_pr
+    primary_skills:
+      - karpathy-guidelines
+      - review-work
+    actions:
+      - read_issue_packet_worker_result_and_diff_only
+      - rerun_required_focused_checks_or_confirm_ci_artifacts
+      - rerun_surface_specific_qa_when_artifact_absent_or_untrusted
+      - compare_acceptance_criteria_to_observed_evidence
+      - emit_evidence_packet_with_artifact_manifest
+      - terminate_verifier_session
+    gates:
+      - traceability_gate
+      - diagnostics_and_build_gate
+      - surface_qa_gate
+      - review_gate
+
   - id: commit_push_and_create_pr
     goal: Inside the issue worker, save verified local work and automatically publish the verified issue branch and PR.
     primary_skills:
@@ -501,7 +557,7 @@ phases:
       - git_gate
 
   - id: phase_full_e2e_and_qa
-    goal: After all issues in a PRD phase pass individually, verify the cross-issue journey.
+    goal: After all issues in a PRD phase pass individually, verify the cross-issue journey in a fresh verifier worker session.
     policy: phase_full_e2e
     primary_skills:
       - playwright
@@ -509,12 +565,15 @@ phases:
       - browser-qa
       - canary-watch
     actions:
+      - spawn_fresh_phase_verifier
       - generate_or_seed_required_test_data
       - start_required_local_services_and_test_db
       - execute_full_user_journey_from_prd_acceptance_criteria
       - operate_local_browser_for_real_interactions
       - record_console_network_screenshots_traces_and_result_evidence
       - rerun_relevant_regression_suites
+      - emit_phase_evidence_packet_with_artifact_manifest
+      - terminate_verifier_session
     gates:
       - surface_qa_gate
       - diagnostics_and_build_gate
@@ -574,16 +633,18 @@ evidence_templates:
     - notes
   issue_completion_comment_sections:
     - summary
-    - ac_evidence
-    - tests_and_e2e
+    - compact_ac_matrix
+    - evidence_packet_refs
+    - tests_and_e2e_summary
     - review_gate
     - risks_or_limitations
     - next_step_recommendation
   repo_handoff_sections:
     - issue_identity
     - acceptance_criteria_evidence
-    - files_changed
-    - verification
+    - compact_verification_summary
+    - evidence_packet_refs
+    - files_changed_summary
     - blockers_or_risks
     - next_recommended_step
   worker_result_object_fields:
@@ -596,11 +657,21 @@ evidence_templates:
     - pr
     - blockers
     - next_recommended_step
+    - evidence_packet_refs
+  evidence_packet_fields:
+    - subject
+    - verifier
+    - status
+    - acceptance_criteria_matrix
+    - gates
+    - artifact_manifest
+    - compact_summary
+    - next_recommended_step
   pr_body_sections:
     - summary
     - linked_issue
-    - acceptance_criteria_evidence
-    - verification
-    - manual_qa
+    - compact_acceptance_criteria_matrix
+    - verification_summary_and_artifact_refs
+    - manual_qa_result_summary
     - review_gate
     - rollout_or_followup
