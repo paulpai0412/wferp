@@ -187,17 +187,26 @@ def render_published_dashboard_link(
         return _denied("published_dashboard_link_malformed", "LINK_TOKEN_MALFORMED", token="")
     if link.revoked:
         return _denied("published_dashboard_link_denied_revoked", "LINK_TOKEN_REVOKED", link=link)
-    if link.expires_at is not None and _parse_timestamp(now) >= _parse_timestamp(link.expires_at):
-        return _denied("published_dashboard_link_denied_expired", "LINK_TOKEN_EXPIRED", link=link)
+    if link.expires_at is not None:
+        try:
+            expired = _parse_timestamp(now) >= _parse_timestamp(link.expires_at)
+        except ValueError:
+            return _denied("published_dashboard_link_denied_malformed_expiration", "LINK_EXPIRATION_MALFORMED", link=link)
+        if expired:
+            return _denied("published_dashboard_link_denied_expired", "LINK_TOKEN_EXPIRED", link=link)
     published = _find_published_dashboard(link, dashboards)
     if published is None:
         return _denied("published_dashboard_link_denied_unpublished", "PUBLISHED_DASHBOARD_NOT_AVAILABLE", link=link)
+    try:
+        data = data_source.read_published_dashboard(published, reason="view")
+    except Exception:
+        return _view_failed(link)
     return {
         "status": "ok",
         "view_only": True,
         "authoring_actions": [],
         "dashboard": _copy_mapping(published.payload),
-        "data": data_source.read_published_dashboard(published, reason="view"),
+        "data": data,
         "audit_events": _audit_events(link.audit_events),
     }
 
@@ -255,6 +264,24 @@ def _denied(event_name: str, code: str, *, link: PublishedDashboardLink | None =
     if token is not None:
         event["token_present"] = bool(token)
     return {"status": "denied", "code": code, "dashboard": None, "data": None, "audit_events": [event]}
+
+
+def _view_failed(link: PublishedDashboardLink) -> dict[str, object]:
+    event: AuditEvent = {
+        "event": "published_dashboard_view_failed",
+        "dashboard_id": link.dashboard_id,
+        "version": link.version,
+        "code": "DASHBOARD_VIEW_FAILED",
+    }
+    return {
+        "status": "error",
+        "code": "DASHBOARD_VIEW_FAILED",
+        "view_only": True,
+        "authoring_actions": [],
+        "dashboard": None,
+        "data": None,
+        "audit_events": [*_audit_events(link.audit_events), event],
+    }
 
 
 def _parse_timestamp(value: str) -> datetime:

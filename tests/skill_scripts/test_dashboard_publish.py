@@ -62,12 +62,15 @@ def _published() -> PublishedDashboard:
 
 
 class FakeReadOnlyDashboardDataSource:
-    def __init__(self, *, fail_refresh: bool = False) -> None:
+    def __init__(self, *, fail_view: bool = False, fail_refresh: bool = False) -> None:
+        self.fail_view: bool = fail_view
         self.fail_refresh: bool = fail_refresh
         self.calls: list[tuple[str, str, int]] = []
 
     def read_published_dashboard(self, published: PublishedDashboard, *, reason: str) -> dict[str, object]:
         self.calls.append((reason, published.dashboard_id, published.version))
+        if reason == "view" and self.fail_view:
+            raise RuntimeError("READ_ONLY_REPLICA_TIMEOUT")
         if reason == "refresh" and self.fail_refresh:
             raise RuntimeError("READ_ONLY_REPLICA_TIMEOUT")
         return {"rows": [{"month": "2026-01", "revenue": 1000}], "reason": reason}
@@ -137,6 +140,57 @@ def test_valid_published_dashboard_link_renders_view_only_without_authoring_cont
     assert dashboard["canvas"] == published.payload["canvas"]
     assert rendered["data"] == {"rows": [{"month": "2026-01", "revenue": 1000}], "reason": "view"}
     assert data_source.calls == [("view", "dashboard-1", 1)]
+
+
+def test_initial_view_data_source_failure_returns_safe_failure_state() -> None:
+    published = _published()
+    link = create_published_dashboard_link(published, expires_at="2026-05-08T00:00:00+00:00")
+    data_source = FakeReadOnlyDashboardDataSource(fail_view=True)
+
+    rendered = render_published_dashboard_link(
+        token=link.token,
+        links=[link],
+        dashboards=[published],
+        data_source=data_source,
+        now="2026-05-07T00:00:00+00:00",
+    )
+
+    assert rendered["status"] == "error"
+    assert rendered["code"] == "DASHBOARD_VIEW_FAILED"
+    assert rendered["view_only"] is True
+    assert rendered["authoring_actions"] == []
+    assert rendered["dashboard"] is None
+    assert rendered["data"] is None
+    events = cast(list[dict[str, object]], rendered["audit_events"])
+    assert events[-1] == {
+        "event": "published_dashboard_view_failed",
+        "dashboard_id": "dashboard-1",
+        "version": 1,
+        "code": "DASHBOARD_VIEW_FAILED",
+    }
+    assert data_source.calls == [("view", "dashboard-1", 1)]
+
+
+def test_malformed_link_expiration_is_denied_without_runtime_crash_or_payload_leak() -> None:
+    published = _published()
+    link = create_published_dashboard_link(published, expires_at="not-a-timestamp")
+    data_source = FakeReadOnlyDashboardDataSource()
+
+    rendered = render_published_dashboard_link(
+        token=link.token,
+        links=[link],
+        dashboards=[published],
+        data_source=data_source,
+        now="2026-05-07T00:00:00+00:00",
+    )
+
+    assert rendered["status"] == "denied"
+    assert rendered["code"] == "LINK_EXPIRATION_MALFORMED"
+    assert rendered["dashboard"] is None
+    assert rendered["data"] is None
+    events = cast(list[dict[str, object]], rendered["audit_events"])
+    assert events[-1]["event"] == "published_dashboard_link_denied_malformed_expiration"
+    assert data_source.calls == []
 
 
 def test_revoked_expired_malformed_and_unpublished_links_are_denied_without_payload_leak() -> None:
