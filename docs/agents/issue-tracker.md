@@ -19,6 +19,14 @@ Use the `gh` CLI for issue operations when a skill says to publish to or fetch f
 
 When running inside this clone, `gh` can also infer the repository from `git remote -v`.
 
+## Autonomous workflow tracker rules
+
+- PR bodies and issue comments may summarize verification only by referencing a verifier-owned evidence packet, for example `docs/agents/evidence/issue-<issue>-pr-<pr>.yaml`.
+- Do not paste raw test logs, browser traces, SQL execution logs, or verbose manual QA transcripts into issue comments or PR bodies.
+- A final QA statement must identify the verifier packet and must not be written as a direct main-agent QA claim.
+- If no verifier packet exists, the issue or PR must be marked blocked for missing verification evidence instead of reporting tests or QA as passed.
+- Worker self-check summaries may be mentioned only as implementation feedback; they are not acceptance evidence unless independently confirmed by a verifier packet.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a GitHub issue in `paulpai0412/wferp`.

@@ -18,27 +18,29 @@ files_changed:
     summary: "<why this file changed>"
 
 verification:
+  note: "Worker self-checks support implementation feedback only; final acceptance comes from the verifier evidence packet."
   gates:
     tdd_gate: "<pass|not_applicable|fail>"
-    diagnostics_and_build_gate: "<pass|fail>"
-    surface_qa_gate: "<pass|fail>"
-    review_gate: "<pass|not_applicable|fail>"
+    implementation_self_check_gate: "<pass|not_applicable|fail>"
     git_gate: "<pass|fail>"
-  automated_checks:
+  implementation_self_checks:
     - command: "<command>"
       result: "<pass|fail>"
       evidence_ref: "<artifact-id, check-run-url, or local artifact path>"
       summary: "<short observed output summary, no raw log>"
-  manual_qa:
-    surface: "<cli|library|api|browser|sql|docs>"
-    happy_path: "<what was exercised>"
-    refusal_or_error_path: "<what was exercised or n/a>"
-    result: "<observed outcome>"
+  final_acceptance_claim: false
 
 evidence_packet_refs:
   worker_artifact_bundle: "<ci-artifact-url-or-local-artifact-path-or-empty>"
   verifier_packet: "docs/agents/evidence/issue-<issue-number>-pr-<pr-number>.yaml"
   raw_evidence_policy: "stored_outside_main_agent_context"
+
+role_boundary:
+  actor_role: "issue_worker"
+  may_execute_implementation_self_checks: true
+  may_execute_final_acceptance_qa: false
+  may_emit_final_verification: false
+  verifier_packet_required_for_completion: true
 
 pr:
   number: "<pr-number-or-none>"
@@ -56,4 +58,5 @@ handoff:
 
 metadata:
   worker: "<worker-session-or-agent-name>"
+  worker_session_id: "<session-id-or-artifact-ref>"
   completed_at: "<ISO-8601 timestamp>"
