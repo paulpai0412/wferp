@@ -25,6 +25,7 @@ FORBIDDEN_SQL2000_REGEX = (
     r"\bfetch\b",
     r"\bexcept\b",
     r"\bintersect\b",
+    r"\bconcat\s*\(",
 )
 
 

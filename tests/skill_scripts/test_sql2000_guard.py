@@ -20,6 +20,7 @@ def test_rejects_cte_and_windowing_and_set_ops_for_sql2000():
         "SELECT * FROM A OFFSET 10 ROWS FETCH NEXT 10 ROWS ONLY",
         "SELECT * FROM A EXCEPT SELECT * FROM B",
         "SELECT * FROM A INTERSECT SELECT * FROM B",
+        "SELECT CONCAT([MK002], [MK006]) FROM [ACTMK]",
     ]
     for sql in bad_sql:
         ok, code = validate_sql(sql)
