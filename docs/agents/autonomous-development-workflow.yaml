@@ -276,6 +276,8 @@ issue_selection:
   ordering:
     - dependency_topological_order
     - oldest_ready_issue_first
+  on_no_ready_issue:
+    - run_prd_phase_completeness_audit
   skip_when:
     - issue_has_needs_info_or_needs_triage
     - acceptance_criteria_not_observable
@@ -310,6 +312,27 @@ context_budget_policy:
   stop_and_rotate_at_percent: 50
   checkpoint_template_path: docs/agents/runtime/context-checkpoint.yaml
   checkpoint_only_cross_session_resume: true
+  phase_1_compact_first_policy:
+    status: active_mvp
+    implementation_spec_path: docs/agents/runtime/phase-1-orchestrator-compact-first.md
+    applies_to:
+      - main_orchestrator_session_only
+    trigger:
+      - selected_issue_is_ready_for_agent
+      - selected_issue_slice_type_is_AFK
+      - orchestrator_is_about_to_enter_per_issue_flow
+    sequence:
+      - create_or_update_checkpoint_before_pr_flow
+      - derive_compact_payload_from_checkpoint
+      - compact_current_orchestrator_session
+      - continue_with_selected_issue_pr_flow
+    exclusions:
+      - do_not_apply_to_issue_worker_sessions
+      - do_not_apply_to_pr_verifier_sessions
+      - do_not_apply_to_phase_verifier_sessions
+    notes:
+      - Phase 1 prefers checkpoint plus compact over automatic new-session orchestration for new issue PR flow startup.
+      - The 50 percent stop-and-rotate policy remains the long-term cross-session contract and is not automated by this MVP.
   resume_policy:
     allowed_context:
       - issue_packet
@@ -553,6 +576,11 @@ phases:
     goal: Orchestrate ready AFK issues through fresh issue-scoped worker sessions until the PRD phase is complete or blocked.
     loop:
       select_next_issue: issue_selection
+      on_no_ready_issue:
+        - run_prd_phase_completeness_audit
+        - if_prd_phase_incomplete_return_to_create_vertical_slice_issues
+        - if_prd_phase_complete_continue_to_phase_full_e2e_and_qa
+        - if_audit_cannot_confirm_coverage_or_publish_more_issues_stop_for_human_decision
       max_issue_gate_repair_attempts: 3
       on_worker_boot_failure:
         - create_handoff_with_attempts_and_failures
@@ -566,6 +594,9 @@ phases:
         - create_handoff_with_attempts_and_failures
         - stop_for_human_decision
     per_issue_flow:
+      - create_or_update_checkpoint_for_selected_AFK_issue
+      - derive_compact_payload_from_checkpoint
+      - compact_main_orchestrator_session_before_pr_flow
       - create_or_switch_issue_branch
       - build_issue_packet
       - spawn_fresh_issue_worker
@@ -677,6 +708,29 @@ phases:
     gates:
       - git_gate
 
+  - id: prd_phase_completeness_audit
+    goal: When no ready AFK issue remains, determine whether the current PRD phase is fully covered before phase-level QA or closure.
+    primary_skills:
+      - to-issues
+      - triage
+      - zoom-out
+    actions:
+      - compare_prd_acceptance_criteria_and_user_journeys_to_completed_open_and_missing_issue_slices
+      - confirm_no_dependency_ready_issue_was_missed
+      - if_prd_phase_incomplete_return_to_create_vertical_slice_issues
+      - if_prd_phase_complete_continue_to_phase_full_e2e_and_qa
+      - record_audit_summary_and_next_recommended_step
+    exit_paths:
+      prd_phase_incomplete:
+        - create_vertical_slice_issues
+        - issue_development_loop
+      prd_phase_complete:
+        - phase_full_e2e_and_qa
+        - phase_refactor
+        - documentation_and_tracker_update
+      blocked:
+        - stop_for_human_decision
+
   - id: phase_full_e2e_and_qa
     goal: After all issues in a PRD phase pass individually, verify the cross-issue journey in a fresh verifier worker session.
     policy: phase_full_e2e
@@ -731,6 +785,7 @@ phases:
 stop_conditions:
   success:
     - all_prd_ready_for_agent_issues_completed
+    - prd_phase_completeness_audit_passed
     - all_issue_prs_have_passed_required_gates
     - phase_full_e2e_passed
     - docs_and_tracker_evidence_posted
@@ -741,6 +796,7 @@ stop_conditions:
     - three_materially_different_fix_attempts_failed
     - required_external_skill_or_tool_install_not_approved
     - issue_worker_boot_or_result_contract_failure
+    - prd_phase_completeness_audit_cannot_confirm_coverage_or_publish_more_issues
     - pull_request_review_or_merge_requires_human_action
     - review_work_fails_with_blocking_issue_that_requires_human_decision
 
