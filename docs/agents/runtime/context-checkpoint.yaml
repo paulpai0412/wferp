@@ -1,0 +1,41 @@
+schema_version: "1.0"
+kind: context_checkpoint
+line_cap: 80
+
+subject:
+  issue_number: "<issue-number>"
+  branch: "agent/issue-<issue-number>-<slug>"
+  role: "<issue_worker|pr_verifier|release_worker>"
+  checkpoint_reason: "<45_percent_warning|50_percent_rotation|manual>"
+
+context_budget:
+  warning_at_percent: 45
+  stop_and_rotate_at_percent: 50
+  measured_percent_used: "<integer>"
+  must_rotate_now: false
+
+resume_policy:
+  checkpoint_only_cross_session_resume: true
+  do_not_import_full_prior_transcript: true
+  raw_evidence_policy: "index_only; raw logs/traces stay in artifact bundle"
+
+state:
+  completed:
+    - "<compact completed fact>"
+  in_progress:
+    - "<compact current task>"
+  next:
+    - "<single next action>"
+  blockers:
+    - "<blocker or none>"
+
+refs:
+  issue_packet: "docs/agents/issue-packets/issue-<issue-number>.yaml"
+  worker_result: "<artifact-ref-or-empty>"
+  evidence_packet: "docs/agents/evidence/issue-<issue-number>-pr-<pr-number>.yaml"
+  handoff: "docs/agents/handoffs/issue-<issue-number>.yaml"
+  artifact_bundle: "<ci-or-local-artifact-ref-or-empty>"
+
+metadata:
+  updated_by: "<agent-or-session>"
+  updated_at: "<ISO-8601 timestamp>"
