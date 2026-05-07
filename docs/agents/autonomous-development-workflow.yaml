@@ -1,0 +1,477 @@
+schema_version: "1.0"
+name: autonomous-development-workflow
+kind: opencode_policy_runbook
+status: draft
+owner: repo-agents
+
+purpose: >
+  Define a gated, self-cycling OpenCode development workflow for this repo.
+  This is a project-owned policy/runbook YAML. OpenCode does not execute this
+  file directly; agents use it as the operating contract and future runners may
+  translate it into OpenCode skills, commands, permissions, and shell gates.
+
+scope:
+  repository: paulpai0412/wferp
+  issue_tracker: github
+  tracker_commands_reference: docs/agents/issue-tracker.md
+  domain_context:
+    - AGENTS.md
+    - CONTEXT.md
+    - docs/agents/domain.md
+    - docs/agents/triage-labels.md
+  default_language:
+    user_replies: traditional_chinese
+    repo_docs_issues_prds_comments: english_unless_target_requires_other_language
+
+automation_boundaries:
+  allowed_without_human_approval:
+    - read_repo_context
+    - create_or_update_local_docs
+    - run_non_destructive_setup_checks
+    - install_python_dependencies_from_repo_docs
+    - start_and_seed_local_test_db
+    - implement_ready_for_agent_issue
+    - run_tests_diagnostics_e2e_and_review_gates
+    - commit_after_all_required_gates_pass
+    - push_branch_to_remote
+    - create_pull_request
+    - close_issue_after_merged_pull_request
+  requires_human_approval:
+    - install_or_update_external_skills_not_already_approved
+    - merge_pull_request_after_review
+    - run_non_test_database_execution
+    - destructive_git_or_shell_operations
+    - install_hooks_plugins_or_scripts_from_third_party_sources
+  forbidden:
+    - force_push_to_main_or_master
+    - bypass_review_or_test_gates
+    - weaken_or_delete_failing_tests_to_pass
+    - commit_secrets_or_credentials
+    - execute_write_sql_or_arbitrary_multi_statement_sql
+
+skills:
+  built_in_or_current:
+    requirement_clarification:
+      - grill-me
+      - grill-with-docs
+      - zoom-out
+    planning_and_issue_flow:
+      - to-prd
+      - to-issues
+      - triage
+    implementation:
+      - tdd
+      - karpathy-guidelines
+      - diagnose
+    frontend_and_browser:
+      - playwright
+      - web-design-engineer
+      - frontend-ui-ux
+    review_and_quality:
+      - review-work
+      - ai-slop-remover
+      - improve-codebase-architecture
+    git_and_release:
+      - git-master
+    docs_and_handoff:
+      - grill-with-docs
+      - write-a-skill
+      - handoff
+  external_installed_minimal_ecc:
+    source_repo: affaan-m/everything-claude-code
+    license: MIT
+    install_policy: copied_pure_skill_markdown_only
+    installed_paths:
+      - /home/timmypai/.config/opencode/skills/e2e-testing/SKILL.md
+      - /home/timmypai/.config/opencode/skills/browser-qa/SKILL.md
+      - /home/timmypai/.config/opencode/skills/canary-watch/SKILL.md
+    active_session_note: >
+      Current OpenCode sessions may not hot-load newly copied skills. Restart
+      OpenCode before relying on skill(name="e2e-testing"), skill(name="browser-qa"),
+      or skill(name="canary-watch"). Until then, treat the files as referenced
+      policy content rather than callable skills.
+    excluded_by_policy:
+      - npm_plugin_ecc_universal
+      - hooks_runtime
+      - scripts
+      - full_opencode_config_overlay
+      - broad_rules_install
+
+global_gates:
+  spec_gate:
+    required: true
+    pass_when:
+      - problem_statement_is_clear
+      - public_interface_or_surface_is_named
+      - acceptance_criteria_are_observable
+      - out_of_scope_is_explicit
+      - unresolved_questions_are_moved_to_needs_info
+  traceability_gate:
+    required: true
+    pass_when:
+      - every_acceptance_criterion_maps_to_evidence
+      - evidence_includes_tests_or_manual_surface_qa
+      - known_limitations_are_documented
+  tdd_gate:
+    required_for_code_changes: true
+    pass_when:
+      - first_behavior_test_fails_before_implementation
+      - implementation_is_minimal_for_current_test
+      - tests_use_public_interface_not_private_helpers
+      - focused_tests_pass
+  diagnostics_and_build_gate:
+    required: true
+    pass_when:
+      - lsp_diagnostics_clean_for_changed_files_when_supported
+      - related_tests_pass
+      - build_or_equivalent_command_passes_when_applicable
+      - pre_existing_failures_are_named_and_not_mixed_with_issue_work
+  surface_qa_gate:
+    required: true
+    pass_when:
+      - deliverable_is_used_through_real_user_surface
+      - happy_path_observed
+      - at_least_one_error_or_refusal_path_observed_when_applicable
+      - evidence_is_recorded_in_issue_or_pr_notes
+  review_gate:
+    policy: major_full_minor_lightweight
+    major_change_requires:
+      - review-work_all_agents_pass
+    lightweight_change_requires:
+      - goal_check_passes
+      - changed_file_diagnostics_or_doc_review_passes
+      - relevant_tests_or_not_applicable_reason_recorded
+  security_gate:
+    required: true
+    pass_when:
+      - no_secrets_in_diff
+      - no_new_unapproved_network_or_script_execution_surface
+      - data_access_and_sql_remain_read_only_unless_explicitly_approved
+      - third_party_skill_or_tool_installs_pass_external_skill_gate
+  git_gate:
+    required: true
+    pass_when:
+      - git_status_and_diff_reviewed_before_commit
+      - commit_contains_only_relevant_files
+      - commit_message_matches_repo_style
+      - push_and_pr_actions_follow_branch_and_pr_policy
+
+repo_specific_gates:
+  setup_gate:
+    commands:
+      - python3 -m pip install pymssql pandas pytest
+      - pytest tests/skill_scripts/test_schema_loader.py -v
+      - python3 -m skill_scripts.cli_generate_select --build-artifacts
+    pass_when:
+      - required_python_dependencies_available
+      - schema_loader_smoke_test_passes
+      - artifacts_build_if_needed
+  sql_generation_gate:
+    applies_when:
+      - skill_scripts_changed
+      - prompt_to_sql_behavior_changed
+      - dashboard_data_source_or_query_execution_changed
+    required_commands:
+      - docker compose -f test_db/docker-compose.testdb.yml up -d
+      - docker exec -i wferp-mssql-test /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Passw0rd\!234 -i /init/01_create_wferp_test.sql
+      - export DB_DRIVER=mssql
+      - export DB_AUTH_MODE=sql_auth
+      - export DB_CONNECTION_STRING="server=127.0.0.1:1433;user=sa;password=Passw0rd!234;database=wferp_test"
+      - export DB_ENV=test
+    pass_when:
+      - sql_is_single_select_statement
+      - sql_server_2000_guard_passes
+      - metadata_and_prompt_consistency_pass
+      - sql_executes_in_test_db
+      - returned_columns_rows_and_aggregates_match_prompt_intent
+  static_docs_gate:
+    applies_when:
+      - index_html_or_df_style_or_HTML_changed
+      - _Source_generator_changed
+    pass_when:
+      - legacy_generators_run_from__Source_when_regeneration_needed
+      - utf8_chinese_vietnamese_text_preserved
+      - windows_style_generated_paths_preserved
+      - browser_opens_index_html_and_iframe_pages_load
+  browser_e2e_gate:
+    applies_when:
+      - web_ui_or_static_html_surface_changed
+      - dashboard_builder_ui_changed
+    skills_or_references:
+      - playwright
+      - e2e-testing
+      - browser-qa
+    pass_when:
+      - browser_loaded_real_local_or_preview_url
+      - critical_user_journey_executed
+      - console_and_network_failures_checked
+      - desktop_and_mobile_viewports_checked_when_visual_behavior_changed
+      - screenshots_or_trace_recorded_for_failures
+
+external_skill_gate:
+  purpose: Decide whether to install missing third-party skills.
+  pass_when:
+    - source_repo_is_allowlisted
+    - license_is_compatible
+    - requested_component_is_necessary_for_current_workflow_gap
+    - install_plan_excludes_hooks_scripts_plugins_unless_explicitly_approved
+    - target_paths_do_not_overwrite_existing_skills_without_diff_review
+    - installation_is_verified_by_reading_installed_files
+  allowlist:
+    - repo: affaan-m/everything-claude-code
+      allowed_components:
+        - skills/e2e-testing/SKILL.md
+        - skills/browser-qa/SKILL.md
+        - skills/canary-watch/SKILL.md
+      default_policy: pure_markdown_copy_only
+  deny_by_default:
+    - npm_packages
+    - hooks
+    - shell_scripts
+    - mcp_configs_with_secrets
+    - full_config_overlays
+
+issue_selection:
+  source: github_issues
+  query_policy:
+    parent_scope: same_prd_or_parent_issue_only
+    required_label: ready-for-agent
+    allowed_slice_type: AFK
+    blockers: all_blockers_closed_or_satisfied
+  ordering:
+    - dependency_topological_order
+    - oldest_ready_issue_first
+  skip_when:
+    - issue_has_needs_info_or_needs_triage
+    - acceptance_criteria_not_observable
+    - issue_requires_human_judgment_or_external_secret
+    - working_tree_conflicts_with_unrelated_user_changes
+
+branch_and_pr_policy:
+  granularity: one_issue_one_branch_one_commit_one_pr
+  branch_name_template: "agent/issue-{issue_number}-{slug}"
+  commit_policy:
+    auto_commit_after_all_gates_pass: true
+    require_clean_relevant_diff: true
+    avoid_committing_unrelated_dirty_worktree_changes: true
+  push_policy:
+    automatic_after_all_gates_pass: true
+  pr_policy:
+    automatic_after_all_gates_pass: true
+    body_must_include:
+      - linked_issue
+      - acceptance_criteria_evidence_table
+      - tests_and_e2e_commands
+      - manual_qa_notes
+      - review_gate_result
+      - known_limitations_or_pre_existing_failures
+  merge_policy:
+    requires_human_review_and_merge_approval: true
+
+phases:
+  - id: clarify_requirements
+    goal: Resolve product intent and ambiguous decisions before implementation.
+    primary_skills:
+      - grill-me
+      - grill-with-docs
+    actions:
+      - read_domain_docs
+      - ask_one_decision_question_at_a_time
+      - record_decisions_in_context_or_prd_notes
+    exit_gate: spec_gate
+
+  - id: create_prd
+    goal: Convert clarified context into a PRD.
+    primary_skills:
+      - to-prd
+    actions:
+      - synthesize_problem_solution_user_stories_decisions_tests_out_of_scope
+      - publish_prd_to_github_issue_with_needs_triage
+      - store_local_copy_when_useful
+    exit_gate: spec_gate
+
+  - id: create_vertical_slice_issues
+    goal: Break the PRD into independently verifiable tracer-bullet issues.
+    primary_skills:
+      - to-issues
+      - triage
+    actions:
+      - draft_AFk_and_HITL_vertical_slices
+      - confirm_granularity_dependencies_and_AFk_status
+      - publish_issues_in_dependency_order
+      - label_ready_for_agent_when_fully_specified
+    exit_gate: traceability_gate
+
+  - id: environment_setup
+    goal: Prepare local dependencies and test surfaces.
+    primary_skills:
+      - karpathy-guidelines
+    actions:
+      - install_documented_python_dependencies
+      - start_and_seed_test_db_when_sql_execution_needed
+      - run_smoke_tests
+      - install_external_skills_only_through_external_skill_gate
+    exit_gate: setup_gate
+
+  - id: issue_development_loop
+    goal: Process ready AFK issues until the PRD phase is complete or blocked.
+    loop:
+      select_next_issue: issue_selection
+      max_issue_gate_repair_attempts: 3
+      on_repair_attempts_exhausted:
+        - run_diagnose_or_consult_oracle_when_debugging_or_architecture_blocks
+        - create_handoff_with_attempts_and_failures
+        - stop_for_human_decision
+    per_issue_flow:
+      - create_or_switch_issue_branch
+      - reread_issue_body_comments_labels_and_parent_prd
+      - map_acceptance_criteria_to_planned_evidence
+      - run_tdd_red_green_refactor_vertical_slices
+      - run_changed_file_diagnostics
+      - run_focused_tests_then_relevant_suite
+      - run_surface_specific_e2e
+      - run_review_gate
+      - commit_if_all_gates_pass
+      - push_branch_if_all_gates_pass
+      - create_pr_if_all_gates_pass
+      - stop_for_pr_merge_review
+
+  - id: per_issue_tdd
+    goal: Implement each issue through public-interface behavior tests.
+    primary_skills:
+      - tdd
+      - karpathy-guidelines
+    fallback_skills:
+      - diagnose
+    gates:
+      - tdd_gate
+      - diagnostics_and_build_gate
+      - surface_qa_gate
+
+  - id: per_issue_e2e
+    goal: Verify each issue through its smallest real user surface.
+    policy: issue_small_e2e
+    primary_skills:
+      - playwright
+      - e2e-testing
+      - browser-qa
+    examples:
+      cli: run_command_and_check_happy_and_error_paths
+      library: run_minimal_driver_script
+      api: hit_live_process_with_curl_or_driver
+      browser: load_page_click_fill_assert_console_network_and_screenshot_failures
+      sql: execute_against_test_db_and_validate_result_evidence
+    gates:
+      - surface_qa_gate
+
+  - id: per_pr_review
+    goal: Ensure a PR is releasable before human merge review.
+    policy: major_full_minor_lightweight
+    major_primary_skill: review-work
+    lightweight_checks:
+      - goal_vs_diff_check
+      - changed_file_diagnostics
+      - relevant_tests_or_not_applicable_reason
+      - manual_surface_qa_notes
+    gates:
+      - review_gate
+      - security_gate
+
+  - id: commit_push_and_create_pr
+    goal: Save verified local work and automatically publish the verified issue branch and PR.
+    primary_skills:
+      - git-master
+    actions:
+      - inspect_git_status_diff_and_log
+      - stage_only_relevant_files
+      - commit_with_accurate_message
+      - push_branch_to_remote
+      - create_pull_request
+    gates:
+      - git_gate
+
+  - id: phase_full_e2e_and_qa
+    goal: After all issues in a PRD phase pass individually, verify the cross-issue journey.
+    policy: phase_full_e2e
+    primary_skills:
+      - playwright
+      - e2e-testing
+      - browser-qa
+      - canary-watch
+    actions:
+      - generate_or_seed_required_test_data
+      - start_required_local_services_and_test_db
+      - execute_full_user_journey_from_prd_acceptance_criteria
+      - operate_local_browser_for_real_interactions
+      - record_console_network_screenshots_traces_and_result_evidence
+      - rerun_relevant_regression_suites
+    gates:
+      - surface_qa_gate
+      - diagnostics_and_build_gate
+
+  - id: phase_refactor
+    goal: Improve architecture only after behavior is green and phase E2E passes.
+    primary_skills:
+      - improve-codebase-architecture
+      - karpathy-guidelines
+      - ai-slop-remover
+    actions:
+      - identify_refactor_candidates_from_completed_phase
+      - apply_surgical_refactors_only
+      - rerun_before_after_behavior_tests
+      - run_review_gate_for_nontrivial_refactors
+    gates:
+      - diagnostics_and_build_gate
+      - review_gate
+
+  - id: documentation_and_tracker_update
+    goal: Write durable completion evidence and update docs after verified behavior.
+    primary_skills:
+      - grill-with-docs
+      - write-a-skill
+    actions:
+      - update_context_or_adr_when_domain_decisions_changed
+      - update_operator_docs_when commands_or_gates_changed
+      - post_issue_or_pr_evidence_summary
+      - recommend_next_step_after_each_completed_unit
+    gates:
+      - traceability_gate
+
+stop_conditions:
+  success:
+    - all_prd_ready_for_agent_issues_completed
+    - all_issue_prs_have_passed_required_gates
+    - phase_full_e2e_passed
+    - docs_and_tracker_evidence_posted
+  blocked:
+    - missing_secret_or_external_access
+    - unresolved_product_decision
+    - destructive_action_required
+    - three_materially_different_fix_attempts_failed
+    - required_external_skill_or_tool_install_not_approved
+    - pull_request_review_or_merge_requires_human_action
+    - review_work_fails_with_blocking_issue_that_requires_human_decision
+
+evidence_templates:
+  acceptance_criteria_table_columns:
+    - ac_number
+    - acceptance_criterion
+    - evidence_type
+    - command_or_surface
+    - result
+    - notes
+  issue_completion_comment_sections:
+    - summary
+    - ac_evidence
+    - tests_and_e2e
+    - review_gate
+    - risks_or_limitations
+    - next_step_recommendation
+  pr_body_sections:
+    - summary
+    - linked_issue
+    - acceptance_criteria_evidence
+    - verification
+    - manual_qa
+    - review_gate
+    - rollout_or_followup
