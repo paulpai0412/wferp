@@ -1,0 +1,74 @@
+schema_version: "1.0"
+kind: worker_result
+line_cap: 80
+raw_evidence_policy: index_only_refs_no_raw_logs_or_transcripts
+
+issue:
+  number: "6"
+  title: "Published Dashboard Link and view-only runtime"
+  url: "https://github.com/paulpai0412/wferp/issues/6"
+
+branch: "agent/issue-6-published-dashboard-link-runtime"
+status: "success"
+
+summary:
+  objective: "Build the library/runtime tracer bullet for opaque Published Dashboard Links, view-only access, bounded refresh, denial states, and audit events."
+  outcome: "Implemented a public library surface for bearer-token Published Dashboard Links, view-only rendering through a read-only data-source boundary, bounded refresh, safe denial/stale states, and stable audit events."
+
+files_changed:
+  - path: "skill_scripts/dashboard_publish.py"
+    summary: "Added PublishedDashboardLink, opaque token creation, revocation, token render resolution, denial codes, read-only runtime rendering, bounded refresh, and audit event emission."
+  - path: "tests/skill_scripts/test_dashboard_publish.py"
+    summary: "Added public-interface tests covering opaque/scoped tokens, view-only runtime, denial paths without payload leaks, refresh bounds, stale/error state, and audit events."
+  - path: "docs/agents/handoffs/issue-6.yaml"
+    summary: "Recorded compact issue handoff and acceptance-criteria evidence refs for orchestrator validation."
+  - path: "docs/agents/worker-results/issue-6.yaml"
+    summary: "Recorded this worker result packet using the repo template."
+
+verification:
+  note: "Worker self-checks support implementation feedback only; final acceptance comes from the verifier evidence packet."
+  gates:
+    tdd_gate: "pass"
+    implementation_self_check_gate: "pass"
+    git_gate: "pass"
+  implementation_self_checks:
+    - command: "python3 -m pytest tests/skill_scripts/test_dashboard_publish.py -q"
+      result: "pass"
+      evidence_ref: "local-worker-self-check:pytest-dashboard-publish"
+      summary: "Focused public-interface dashboard publish/runtime tests passed."
+    - command: "python3 -m py_compile skill_scripts/dashboard_publish.py tests/skill_scripts/test_dashboard_publish.py"
+      result: "pass"
+      evidence_ref: "local-worker-self-check:py-compile-dashboard-publish"
+      summary: "Changed Python files compiled successfully."
+  final_acceptance_claim: false
+
+evidence_packet_refs:
+  worker_artifact_bundle: "docs/agents/worker-results/issue-6.yaml"
+  verifier_packet: "pending PR verifier packet; no PR number available in worker scope at artifact creation time"
+  raw_evidence_policy: "stored_outside_main_agent_context"
+
+role_boundary:
+  actor_role: "issue_worker"
+  may_execute_implementation_self_checks: true
+  may_execute_final_acceptance_qa: false
+  may_emit_final_verification: false
+  verifier_packet_required_for_completion: true
+
+pr:
+  number: "none"
+  url: ""
+  ready_for_review: false
+
+blockers:
+  - "none"
+
+next_recommended_step: "Spawn a fresh PR/issue verifier to independently run the issue #6 acceptance checks and produce the verifier evidence packet."
+
+handoff:
+  repo_path: "docs/agents/handoffs/issue-6.yaml"
+  github_summary_posted: false
+
+metadata:
+  worker: "Sisyphus-Junior"
+  worker_session_id: "local-worker-issue-6"
+  completed_at: "2026-05-07T00:00:00Z"
