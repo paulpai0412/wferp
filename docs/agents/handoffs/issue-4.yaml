@@ -9,27 +9,27 @@ issue_identity:
 acceptance_criteria_evidence:
   - ac_id: "AC1"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC1"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC1"
     note: "Curated generic Design Template options are exposed through a deterministic library payload."
   - ac_id: "AC2"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC2"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC2"
     note: "Official option names use generic descriptive names rather than copied source brand names."
   - ac_id: "AC3"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC3"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC3"
     note: "The analyst-facing public API selects exactly one allowed Design Template."
   - ac_id: "AC4"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC4"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC4"
     note: "The selected template is applied to a Dashboard Canvas preview payload."
   - ac_id: "AC5"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC5"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC5"
     note: "Switching templates replaces the active selection and does not retain the previous template."
   - ac_id: "AC6"
     status: pass
-    evidence_ref: "docs/agents/evidence/issue-4-local.yaml#AC6"
+    evidence_ref: "docs/agents/evidence/issue-4-pr-13.yaml#AC6"
     note: "Focused tests cover allowed templates, generic naming, single-template selection, canonicalization, replacement, and deterministic presentation payloads."
 
 compact_verification_summary:
@@ -39,9 +39,9 @@ compact_verification_summary:
   review_gate: "pass: 5-agent review gate passed after fixing code-quality feedback by canonicalizing forged selections; no SQL or write-data surface added."
 
 evidence_packet_refs:
-  verifier_packet: "docs/agents/evidence/issue-4-local.yaml"
-  worker_artifact_bundle: "local session evidence before commit"
-  pr: "pending"
+  verifier_packet: "docs/agents/evidence/issue-4-pr-13.yaml"
+  worker_artifact_bundle: "local session evidence from PR #13"
+  pr: "https://github.com/paulpai0412/wferp/pull/13"
   raw_evidence_policy: "Detailed command output stays in verifier artifacts; this handoff keeps compact refs only."
 
 files_changed_summary:
@@ -49,7 +49,7 @@ files_changed_summary:
     summary: "Added curated Design Template catalog, deterministic presentation payloads, selection, replacement, and Dashboard Canvas preview application."
   - path: "tests/skill_scripts/test_design_template_catalog.py"
     summary: "Covered generic naming, allowed/refused selection, canonical selection application, one-template-at-a-time replacement, deterministic payloads, and canvas preview application."
-  - path: "docs/agents/evidence/issue-4-local.yaml"
+  - path: "docs/agents/evidence/issue-4-pr-13.yaml"
     summary: "Recorded compact evidence for issue #4 acceptance criteria and gates."
   - path: "docs/agents/handoffs/issue-4.yaml"
     summary: "Recorded issue-scoped handoff evidence for downstream issue #5."
@@ -58,4 +58,4 @@ blockers_or_risks:
   - "No product blocker. This is a library-only tracer bullet; browser UI/CLI integration is out of scope."
   - "Directory-level LSP still reports stale missing-import diagnostics for the new untracked module; Python import, py_compile, direct module diagnostics, and pytest all pass."
 
-next_recommended_step: "Review/merge issue #4, then continue with issue #5 final Dashboard Approval and immutable publish."
+next_recommended_step: "After PR #13 human review/merge, continue issue #5 final Dashboard Approval and immutable publish."

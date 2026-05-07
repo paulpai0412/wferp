@@ -4,10 +4,10 @@ kind: evidence_packet
 subject:
   type: "issue_pr"
   issue_number: "4"
-  pr_number: "local"
+  pr_number: "13"
   phase: "dashboard-builder-mvp"
   branch: "agent/issue-4-design-template-catalog-and-selection"
-  sha: "local-uncommitted"
+  sha: "9dd8304"
 
 verifier:
   actor: "Hephaestus"
@@ -57,7 +57,7 @@ gates:
     evidence_ref: "diff-review:no-secrets-or-write-sql-surface"
 
 artifact_manifest:
-  bundle_ref: "local-session-evidence:issue-4"
+  bundle_ref: "local-session-evidence:pr-13"
   retention: "compact summary retained in repo; raw command output not duplicated in main agent context"
   items:
     - id: "command:py-compile-lsp-and-pytest"
@@ -94,4 +94,4 @@ compact_summary:
     - "Library-only tracer bullet; browser UI/CLI integration remains out of scope."
     - "LSP reports stale missing-import diagnostics for the new untracked module, but direct file diagnostics, Python import, py_compile, and pytest all pass."
 
-next_recommended_step: "After issue #4 review/merge, continue with issue #5 final approval and immutable publish."
+next_recommended_step: "After PR #13 human review/merge, continue with issue #5 final approval and immutable publish."
