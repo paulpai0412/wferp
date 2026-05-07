@@ -5,44 +5,54 @@ issue_identity:
   title: "Dashboard Canvas layout persistence"
   url: "https://github.com/paulpai0412/wferp/issues/7"
   branch: "agent/issue-7-dashboard-canvas-layout-persistence"
+
 acceptance_criteria_evidence:
-  AC1:
+  - ac_id: "AC1"
     status: pass
-    evidence: "test_approved_chart_draft_can_be_added_to_dashboard_canvas adds a DashboardChartDraft created from an approved GovernedQueryResult; test_canvas_rejects_invalid_chart_drafts_before_placement refuses raw ChartSpec/non-draft inputs and unapproved query results."
-  AC2:
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC1"
+    note: "Approved chart drafts can be added; raw, manual, or unapproved drafts are refused before placement."
+  - ac_id: "AC2"
     status: pass
-    evidence: "test_chart_can_be_moved_and_resized_without_losing_identity moves and resizes the same chart_id through the public DashboardCanvas API."
-  AC3:
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC2"
+    note: "Move and resize preserve chart identity through the public DashboardCanvas API."
+  - ac_id: "AC3"
     status: pass
-    evidence: "test_layout_persistence_round_trips_coordinates_dimensions_and_chart_payloads asserts to_payload includes chart_id, x, y, w, h, and chart payloads."
-  AC4:
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC3"
+    note: "Serialized payloads include chart_id, coordinates, dimensions, and chart payloads."
+  - ac_id: "AC4"
     status: pass
-    evidence: "test_layout_persistence_round_trips_coordinates_dimensions_and_chart_payloads reloads via load_dashboard_canvas and compares replayed render_layout payloads."
-  AC5:
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC4"
+    note: "Persisted layouts reload and replay to the same rendered layout payload."
+  - ac_id: "AC5"
     status: pass
-    evidence: "test_overlap_and_bounds_violations_are_rejected_deterministically, test_persisted_layout_replay_rejects_invalid_overlap_and_bounds_payloads, test_canvas_rejects_fractional_grid_values, and test_persisted_layout_replay_rejects_malformed_chart_metadata assert deterministic rejection codes."
-  AC6:
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC5"
+    note: "Overlap, bounds, fractional grid, and malformed persisted chart metadata are rejected deterministically."
+  - ac_id: "AC6"
     status: pass
-    evidence: "tests/skill_scripts/test_dashboard_canvas.py covers add, move, resize, overlap rejection, bounds rejection, serialization, and replay."
-files_changed:
-  - "skill_scripts/dashboard_canvas.py"
-  - "tests/skill_scripts/test_dashboard_canvas.py"
-  - "docs/agents/handoffs/issue-7.yaml"
-verification:
-  diagnostics:
-    - command: "lsp_diagnostics skill_scripts/dashboard_canvas.py tests/skill_scripts/test_dashboard_canvas.py"
-      result: "pass: no diagnostics"
-  automated:
-    - command: "python3 -m py_compile skill_scripts/dashboard_canvas.py tests/skill_scripts/test_dashboard_canvas.py"
-      result: "pass"
-    - command: "python3 -m pytest tests/skill_scripts/test_dashboard_canvas*.py -q"
-      result: "pass: 8 passed"
-    - command: "python3 -m pytest tests/skill_scripts/ -q"
-      result: "pass: 82 passed"
-  manual_qa:
-    - surface: "library"
-      command: "minimal Python driver using author_chart_spec, DashboardCanvas, load_dashboard_canvas"
-      result: "pass: approved DashboardChartDraft added/moved/resized/serialized/reloaded; raw/manual/unapproved drafts, overlap, out-of-bounds, fractional grid values, and semantically malformed persisted chart metadata refused"
+    evidence_ref: "docs/agents/evidence/issue-7-pr-12.yaml#AC6"
+    note: "Focused dashboard canvas tests cover add, move, resize, serialization, replay, and refusal paths."
+
+compact_verification_summary:
+  status: pass
+  diagnostics_and_build_gate: "pass: changed Python files had no LSP diagnostics, py_compile passed, and focused/full skill_scripts tests passed."
+  surface_qa_gate: "pass: library driver exercised add, move, resize, serialize, reload, and invalid-input refusal paths."
+  review_gate: "pass: focused Oracle re-review passed before PR #12 handoff."
+
+evidence_packet_refs:
+  verifier_packet: "docs/agents/evidence/issue-7-pr-12.yaml"
+  worker_artifact_bundle: "local session evidence from commit d5e17d1"
+  pr: "https://github.com/paulpai0412/wferp/pull/12"
+  raw_evidence_policy: "Detailed command output stays in verifier artifacts; this handoff keeps compact refs only."
+
+files_changed_summary:
+  - path: "skill_scripts/dashboard_canvas.py"
+    summary: "Added dashboard canvas chart placement, movement, resizing, persistence, and replay validation."
+  - path: "tests/skill_scripts/test_dashboard_canvas.py"
+    summary: "Covered canvas placement, identity, persistence round trip, and deterministic rejection cases."
+  - path: "docs/agents/handoffs/issue-7.yaml"
+    summary: "Recorded compact issue handoff evidence."
+
 blockers_or_risks:
   - "No blocker identified. This issue remains a library-only Dashboard Canvas tracer bullet; no browser UI exists in scope."
-next_recommended_step: "Main session should inspect the verified commit, then decide whether to push/create the PR for issue #7."
+
+next_recommended_step: "After PR #12 human review/merge, continue with the next dependency-ready issue."
