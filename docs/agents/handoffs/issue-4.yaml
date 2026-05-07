@@ -34,15 +34,16 @@ acceptance_criteria_evidence:
 
 compact_verification_summary:
   status: pass
-  diagnostics_and_build_gate: "pass: changed Python files had no direct LSP diagnostics, py_compile passed, and focused/full skill_scripts tests passed; directory LSP has stale missing-import output for the new untracked module despite runtime import success."
-  surface_qa_gate: "pass: library driver exercised template listing, selection, canvas preview application, template switching, and invalid-template refusal."
-  review_gate: "pass: 5-agent review gate passed after fixing code-quality feedback by canonicalizing forged selections; no SQL or write-data surface added."
+  diagnostics_and_build_gate: "pass: fresh post-enforcement verifier recorded py_compile, runtime import, focused tests, and full skill_scripts pytest evidence; LSP was unavailable in verifier session."
+  surface_qa_gate: "pass: fresh post-enforcement verifier recorded public API driver coverage for template listing, selection, canvas preview application, switching, refusal, and canonicalization."
+  review_gate: "pass: fresh post-enforcement verifier recorded diff, context, and security review evidence and confirmed PR #13 is mergeable after PR #14."
 
 evidence_packet_refs:
   verifier_packet: "docs/agents/evidence/issue-4-pr-13.yaml"
-  worker_artifact_bundle: "local session evidence from commit 7e4c527"
+  verifier_session_id: "opencode-session-pr13-verify-2026-05-07"
+  worker_artifact_bundle: "pre-enforcement local session evidence; retained as context only"
   pr: "https://github.com/paulpai0412/wferp/pull/13"
-  raw_evidence_policy: "Detailed command output stays in verifier artifacts; this handoff keeps compact refs only."
+  raw_evidence_policy: "Raw verifier logs stay outside main-agent context; this handoff keeps compact refs only."
 
 files_changed_summary:
   - path: "skill_scripts/design_template_catalog.py"
@@ -56,6 +57,6 @@ files_changed_summary:
 
 blockers_or_risks:
   - "No product blocker. This is a library-only tracer bullet; browser UI/CLI integration is out of scope."
-  - "Directory-level LSP still reports stale missing-import diagnostics for the new untracked module; Python import, py_compile, direct module diagnostics, and pytest all pass."
+  - "LSP server was unavailable in the fresh verifier session; py_compile, runtime import, focused tests, public API driver, and full pytest suite evidence passed."
 
-next_recommended_step: "After PR #13 human review/merge, continue issue #5 final Dashboard Approval and immutable publish."
+next_recommended_step: "Merge PR #13, close issue #4, then continue issue #5 final Dashboard Approval and immutable publish."
