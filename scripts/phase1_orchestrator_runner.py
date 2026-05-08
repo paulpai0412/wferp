@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Run the Phase 1 orchestrator compact-first flow for a selected AFK issue."""
+"""Run the Phase 1 orchestrator checkpoint-to-new-session flow for a selected AFK issue."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -20,6 +19,7 @@ from scripts.phase1_compact_payload import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_NEW_SESSION_REQUEST_PATH = ROOT / ".opencode/runtime/new-session-request.json"
 
 
 @dataclass
@@ -33,11 +33,30 @@ class IssuePacketRecord:
 @dataclass
 class RunnerResult:
     checkpoint_path: Path
+    new_session_request_path: Path
     issue_number: str
     branch: str
     immediate_next_action: str
-    compact_command: str | None
-    compact_ran: bool
+
+
+def write_new_session_request(
+    request_path: Path,
+    *,
+    issue_number: str,
+    branch: str,
+    immediate_next_action: str,
+) -> None:
+    request_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "reason": f"phase1 issue continuation for issue #{issue_number}",
+        "title": f"Continue issue #{issue_number} on {branch}",
+        "prompt": (
+            "Bootstrap from docs/agents/runtime/context-checkpoint.yaml only. "
+            "Do not import prior transcript. "
+            f"Start with this immediate next action: {immediate_next_action}"
+        ),
+    }
+    _ = request_path.write_text(f"{json.dumps(payload, indent=2)}\n", encoding="utf-8")
 
 
 def _parse_scalar(value: str) -> str:
@@ -109,7 +128,7 @@ def run_phase1(
     issue_packet_path: Path,
     checkpoint_path: Path,
     workflow_policy_path: str = DEFAULT_WORKFLOW_POLICY_PATH,
-    compact_command: str | None = None,
+    new_session_request_path: Path = DEFAULT_NEW_SESSION_REQUEST_PATH,
     updated_at: str | None = None,
 ) -> RunnerResult:
     issue_packet = parse_issue_packet_text(
@@ -130,21 +149,19 @@ def run_phase1(
 
     checkpoint_record = parse_checkpoint_text(checkpoint_path.read_text(encoding="utf-8"))
     payload = derive_compact_payload(checkpoint_record, workflow_policy_path=workflow_policy_path)
-
-    compact_ran = False
-    if compact_command:
-        completed = subprocess.run(compact_command, shell=True, cwd=ROOT, check=False, text=True)
-        if completed.returncode != 0:
-            raise RuntimeError(f"compact command failed with exit code {completed.returncode}: {compact_command}")
-        compact_ran = True
-
-    return RunnerResult(
-        checkpoint_path=checkpoint_path,
+    write_new_session_request(
+        new_session_request_path,
         issue_number=issue_packet.issue_number,
         branch=issue_packet.branch,
         immediate_next_action=payload["immediate_next_action"],
-        compact_command=compact_command,
-        compact_ran=compact_ran,
+    )
+
+    return RunnerResult(
+        checkpoint_path=checkpoint_path,
+        new_session_request_path=new_session_request_path,
+        issue_number=issue_packet.issue_number,
+        branch=issue_packet.branch,
+        immediate_next_action=payload["immediate_next_action"],
     )
 
 
@@ -153,13 +170,14 @@ def build_parser() -> argparse.ArgumentParser:
     _ = parser.add_argument("--issue-packet", required=True, help="Path to the selected AFK issue packet")
     _ = parser.add_argument("--checkpoint", default=str(DEFAULT_CHECKPOINT_PATH), help="Path to context-checkpoint.yaml")
     _ = parser.add_argument(
+        "--new-session-request",
+        default=str(DEFAULT_NEW_SESSION_REQUEST_PATH),
+        help="Path to .opencode/runtime/new-session-request.json",
+    )
+    _ = parser.add_argument(
         "--workflow-policy-path",
         default=DEFAULT_WORKFLOW_POLICY_PATH,
         help="Canonical workflow policy ref for authoritative_refs",
-    )
-    _ = parser.add_argument(
-        "--compact-command",
-        help="Optional shell command to invoke the actual compact step after checkpoint update",
     )
     _ = parser.add_argument("--updated-at", help="Fixed timestamp for deterministic updates")
     return parser
@@ -169,13 +187,14 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     issue_packet_path = Path(cast(str, args.issue_packet))
     checkpoint_path = Path(cast(str, args.checkpoint))
+    new_session_request_path = Path(cast(str, args.new_session_request))
 
     try:
         result = run_phase1(
             issue_packet_path=issue_packet_path,
             checkpoint_path=checkpoint_path,
+            new_session_request_path=new_session_request_path,
             workflow_policy_path=cast(str, args.workflow_policy_path),
-            compact_command=cast(str | None, args.compact_command),
             updated_at=cast(str | None, args.updated_at),
         )
     except (ValueError, RuntimeError) as error:
@@ -183,10 +202,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"phase1 runner: updated checkpoint {result.checkpoint_path}")
-    if result.compact_ran:
-        print(f"phase1 runner: compact command succeeded for issue #{result.issue_number}")
-    else:
-        print("phase1 runner: compact command not provided; run /compact manually in the orchestrator session")
+    print(f"phase1 runner: wrote continuation request {result.new_session_request_path}")
     print(f"phase1 runner: next action -> {result.immediate_next_action}")
     return 0
 
