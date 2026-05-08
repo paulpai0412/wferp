@@ -227,24 +227,35 @@ def _render_list_block(key: str, items: list[str], *, indent: int) -> list[str]:
     return lines
 
 
+def _render_inline_string_list(items: list[str]) -> str:
+    if not items:
+        return "[]"
+    return f"[{', '.join(_quote(item) for item in items)}]"
+
+
 def render_compact_payload_block(payload: CompactPayload) -> list[str]:
     active_target = payload["active_target"]
     state_snapshot = payload["state_snapshot"]
     lines = ["compact_payload:"]
-    lines.append("  active_target:")
-    lines.append(f"    issue_number: {_quote(active_target['issue_number'])}")
-    lines.append(f"    branch: {_quote(active_target['branch'])}")
-    lines.append(f"    role: {_quote(active_target['role'])}")
-    lines.append(f"    next_flow: {_quote(active_target['next_flow'])}")
-    lines.append("  authoritative_refs:")
-    lines.extend(f"    - {_quote(ref)}" for ref in payload["authoritative_refs"])
+    lines.append(
+        "  active_target: {"
+        + ", ".join(
+            [
+                f"issue_number: {_quote(active_target['issue_number'])}",
+                f"branch: {_quote(active_target['branch'])}",
+                f"role: {_quote(active_target['role'])}",
+                f"next_flow: {_quote(active_target['next_flow'])}",
+            ]
+        )
+        + "}"
+    )
+    lines.append(f"  authoritative_refs: {_render_inline_string_list(payload['authoritative_refs'])}")
     lines.append("  state_snapshot:")
-    lines.extend(_render_list_block("completed", state_snapshot["completed"], indent=4))
-    lines.extend(_render_list_block("in_progress", state_snapshot["in_progress"], indent=4))
-    lines.extend(_render_list_block("next", state_snapshot["next"], indent=4))
-    lines.extend(_render_list_block("blockers", state_snapshot["blockers"], indent=4))
-    lines.append("  resume_rules:")
-    lines.extend(f"    - {_quote(rule)}" for rule in payload["resume_rules"])
+    lines.append(f"    completed: {_render_inline_string_list(state_snapshot['completed'])}")
+    lines.append(f"    in_progress: {_render_inline_string_list(state_snapshot['in_progress'])}")
+    lines.append(f"    next: {_render_inline_string_list(state_snapshot['next'])}")
+    lines.append(f"    blockers: {_render_inline_string_list(state_snapshot['blockers'])}")
+    lines.append(f"  resume_rules: {_render_inline_string_list(payload['resume_rules'])}")
     lines.append(f"  immediate_next_action: {_quote(payload['immediate_next_action'])}")
     return lines
 

@@ -338,9 +338,9 @@ context_budget_policy:
   stop_and_rotate_at_percent: 50
   checkpoint_template_path: docs/agents/runtime/context-checkpoint.yaml
   checkpoint_only_cross_session_resume: true
-  phase_1_compact_first_policy:
+  phase_1_checkpoint_to_new_session_policy:
     status: active_mvp
-    implementation_spec_path: docs/agents/runtime/phase-1-orchestrator-compact-first.md
+    implementation_spec_path: docs/agents/runtime/phase-1-orchestrator-checkpoint-to-new-session.md
     applies_to:
       - main_orchestrator_session_only
     trigger:
@@ -350,14 +350,14 @@ context_budget_policy:
     sequence:
       - create_or_update_checkpoint_before_pr_flow
       - derive_compact_payload_from_checkpoint
-      - compact_current_orchestrator_session
-      - continue_with_selected_issue_pr_flow
+      - write_new_session_continuation_request
+      - continue_with_selected_issue_pr_flow_in_fresh_session
     exclusions:
       - do_not_apply_to_issue_worker_sessions
       - do_not_apply_to_pr_verifier_sessions
       - do_not_apply_to_phase_verifier_sessions
     notes:
-      - Phase 1 prefers checkpoint plus compact over automatic new-session orchestration for new issue PR flow startup.
+      - Phase 1 now uses checkpoint plus plugin-driven fresh-session continuation for new issue PR flow startup.
       - The 50 percent stop-and-rotate policy remains the long-term cross-session contract and is not automated by this MVP.
   resume_policy:
     allowed_context:
@@ -695,7 +695,7 @@ phases:
     per_issue_flow:
       - create_or_update_checkpoint_for_selected_AFK_issue
       - derive_compact_payload_from_checkpoint
-      - compact_main_orchestrator_session_before_pr_flow
+      - write_new_session_continuation_request_before_pr_flow
       - create_or_switch_issue_branch
       - build_issue_packet
       - spawn_fresh_issue_worker
