@@ -65,12 +65,33 @@ def test_update_checkpoint_text_inserts_compact_payload_and_standardizes_state()
     )
 
     assert "compact_payload:" in updated
+    assert '  active_target: {issue_number: "42", branch: "agent/issue-42-demo", role: "main_orchestrator", next_flow: "per_issue_flow"}' in updated
     assert '  in_progress:' in updated
     assert '    - "Prepare the orchestrator session to enter issue #42 PR flow."' in updated
     assert '    - "Continue per_issue_flow for issue #42 by creating or switching the issue branch."' in updated
     assert '  immediate_next_action: "Continue per_issue_flow for issue #42 by creating or switching the issue branch."' in updated
     assert '  updated_at: "2026-05-07T16:30:00+08:00"' in updated
     assert len(updated.splitlines()) <= CHECKPOINT_LINE_CAP
+
+
+def test_update_checkpoint_text_real_issue20_shape_stays_within_line_cap():
+    checkpoint_path = Path("docs/agents/runtime/context-checkpoint.yaml")
+    original = checkpoint_path.read_text(encoding="utf-8")
+
+    updated = update_checkpoint_text(
+        original,
+        issue_number="20",
+        branch="agent/issue-20-reconstruct-governed-query-traceability",
+        role="main_orchestrator",
+        issue_packet="docs/agents/issue-packets/issue-20.yaml",
+        handoff="docs/agents/handoffs/issue-6.yaml",
+        updated_at="2026-05-08T23:30:00+08:00",
+    )
+
+    assert len(updated.splitlines()) <= CHECKPOINT_LINE_CAP
+    assert 'issue_number: "20"' in updated
+    assert 'issue_packet: "docs/agents/issue-packets/issue-20.yaml"' in updated
+    assert 'handoff: "docs/agents/handoffs/issue-6.yaml"' in updated
 
 
 def test_derive_compact_payload_reads_runtime_checkpoint_contract():
