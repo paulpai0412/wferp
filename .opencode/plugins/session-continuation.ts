@@ -20,6 +20,9 @@ type NewSessionResult = {
   title: string
   reason?: string
   error?: string
+  tuiResumeCommand?: string
+  cliOpenCommand?: string
+  recommendedAction?: string
   recordedAt: string
 }
 
@@ -120,6 +123,11 @@ export const SessionContinuationPlugin: Plugin = async ({ client, directory, wor
           childSessionID: result.childSessionID,
           title: result.title,
           reason: newSessionRequest.reason,
+          tuiResumeCommand: "/sessions",
+          cliOpenCommand: `opencode --session ${result.childSessionID}`,
+          recommendedAction:
+            `Open /sessions in OpenCode TUI and switch to ${result.childSessionID}, ` +
+            `or run opencode --session ${result.childSessionID}.`,
           recordedAt: new Date().toISOString(),
         })
       } catch (error) {

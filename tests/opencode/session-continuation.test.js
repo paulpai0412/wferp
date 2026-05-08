@@ -193,6 +193,9 @@ describe("SessionContinuationPlugin", () => {
       expect(result.status).toBe("success")
       expect(result.parentSessionID).toBe("ses_parent")
       expect(result.childSessionID).toBe("ses_child")
+      expect(result.tuiResumeCommand).toBe("/sessions")
+      expect(result.cliOpenCommand).toBe("opencode --session ses_child")
+      expect(result.recommendedAction).toContain("ses_child")
     } finally {
       await rm(worktree, { recursive: true, force: true })
     }
