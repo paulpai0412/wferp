@@ -7,7 +7,7 @@ branch: "agent/issue-32-prompt-to-published-dashboard-e2e"
 status: "success"
 summary:
   objective: "Materialize the CLI/library prompt-to-published-dashboard E2E path while recording live LLM governed-query evidence as non-blocking evidence and deterministic regression as the release gate."
-  outcome: "Added compact live LLM governed-query evidence classification beside the deterministic prompt-to-published-dashboard target case, reran worker self-checks, and updated E2E workflow artifacts without claiming final acceptance."
+  outcome: "Added compact live LLM governed-query evidence classification beside the deterministic prompt-to-published-dashboard target case, reran worker self-checks, updated E2E workflow artifacts, and opened PR #36 without claiming final acceptance."
 files_changed:
   - {path: "skill_scripts/governed_query.py", summary: "Adds a public compact live LLM governed-query evidence helper that classifies LLM availability, infra, test-data, and product failures separately."}
   - {path: "tests/skill_scripts/test_dashboard_builder_e2e.py", summary: "Extends E2E-001 coverage with non-blocking live LLM failure classification while preserving the deterministic MK006 bar-chart to Published Dashboard Link flow."}
@@ -45,11 +45,11 @@ verification:
   final_acceptance_claim: false
 evidence_packet_refs:
   worker_artifact_bundle: "docs/agents/worker-results/issue-32.yaml"
-  verifier_packet: "docs/agents/evidence/issue-32-pr-<pr-number>.yaml"
+  verifier_packet: "docs/agents/evidence/issue-32-pr-36.yaml"
   raw_evidence_policy: "stored_outside_main_agent_context"
 role_boundary: {actor_role: "issue_worker", may_execute_implementation_self_checks: true, may_execute_final_acceptance_qa: false, may_emit_final_verification: false, verifier_packet_required_for_completion: true}
-pr: {number: "", url: "", ready_for_review: false}
+pr: {number: "36", url: "https://github.com/paulpai0412/wferp/pull/36", ready_for_review: true}
 blockers: ["Fresh verifier evidence is still required before issue #32 can be claimed as accepted."]
-next_recommended_step: "Open the worker PR, then spawn a distinct verifier to rerun E2E-001 and the focused dashboard regression bucket."
+next_recommended_step: "Spawn a distinct verifier for PR #36 to rerun E2E-001 and the focused dashboard regression bucket."
 handoff: {repo_path: "docs/agents/handoffs/issue-32.yaml", github_summary_posted: false}
-metadata: {worker: "OpenCode-gpt-5.5", worker_session_id: "worker-result:issue-32", completed_at: "2026-05-09T23:18:00+08:00"}
+metadata: {worker: "OpenCode-gpt-5.5", worker_session_id: "worker-result:issue-32", completed_at: "2026-05-09T23:24:00+08:00"}

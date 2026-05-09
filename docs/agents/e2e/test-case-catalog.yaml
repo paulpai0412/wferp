@@ -21,13 +21,13 @@ entries:
     issue: {number: "32", url: "https://github.com/paulpai0412/wferp/issues/32", labels: [ready-for-agent, e2e-test-case]}
     surface: "cli|library"
     status: "in-progress"
-    latest_pr: {number: "", url: ""}
+    latest_pr: {number: "36", url: "https://github.com/paulpai0412/wferp/pull/36"}
     latest_evidence_packet: ""
     latest_failure_signature: "none"
     prior_verified_refs: [{issue: "28", pr: "29", evidence_packet: "docs/agents/evidence/issue-28-pr-29.yaml", source: "#1 AC17"}]
     latest_refactor_refs: []
     affected_by_refactor: false
-    next_recommended_step: "Open the issue #32 worker PR, then spawn a fresh verifier for E2E-001 live evidence plus deterministic regression."
+    next_recommended_step: "Spawn a fresh verifier for PR #36 to check E2E-001 live evidence plus deterministic regression."
 
 entry_schema:
   id: "E2E-001"
