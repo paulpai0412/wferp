@@ -16,6 +16,15 @@ objective: "<single-sentence goal for this worker>"
 acceptance_criteria:
   - {id: "AC1", text: "<observable behavior>", evidence_hint: "<test, command, or manual surface check>"}
 
+test_case:
+  applies: false
+  id: "<E2E-id-or-empty>"
+  source: {type: "<prd_ac|bug_report|regression|manual_risk|none>", ref: "<ref-or-empty>"}
+  surface: "<cli|api|browser|library|sql|static-html|none>"
+  scenario: "<one user-visible journey or empty>"
+  expected_outcome: "<observable pass condition or empty>"
+  regression_bucket: ["<focused verifier checks or none>"]
+
 scope:
   in: ["<repo path or behavior in scope>"]
   out: ["<explicit non-goal>"]
@@ -41,7 +50,7 @@ verification_plan:
       - {command: "<command-or-ci-artifact-ref>", success_criteria: "<what verifier must observe or confirm>"}
   verifier_manual_qa:
     owner: "pr_verifier"
-    surface: "<cli|library|api|browser|sql|docs>"
+    surface: "<cli|api|browser|library|sql|static-html>"
     happy_path: "<what verifier exercises>"
     refusal_or_error_path: "<edge/refusal path or n/a>"
 

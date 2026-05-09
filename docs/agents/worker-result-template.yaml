@@ -19,6 +19,15 @@ files_changed:
   - path: "<repo-path>"
     summary: "<why this file changed>"
 
+test_case_repair:
+  applies: false
+  test_case_id: "<E2E-id-or-empty>"
+  attempted_target_case: false
+  repaired_categories: ["<product|test|fixture|harness|test_data_seed|none>"]
+  failure_signature: "<stable-signature-or-none>"
+  assertion_changed: false
+  expected_outcome_changed: false
+
 verification:
   note: "Worker self-checks support implementation feedback only; final acceptance comes from the verifier evidence packet."
   gates:
