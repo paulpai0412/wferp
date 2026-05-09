@@ -8,7 +8,7 @@ function createClientRecorder() {
   const logs = []
   const sessionCreates = []
   const sessionPrompts = []
-  let createResponse = { data: { id: "ses_child", title: "child" }, error: undefined }
+  let createResponse = { data: { id: "ses_root", title: "root" }, error: undefined }
   let promptResponse = { data: undefined, error: undefined }
   return {
     logs,
@@ -35,7 +35,7 @@ function createClientRecorder() {
                 ...createResponse,
                 data: {
                   ...createResponse.data,
-                  title: createResponse.data.title ?? input.body?.title ?? "child",
+                  title: createResponse.data.title ?? input.body?.title ?? "root",
                 },
               }
             : createResponse
@@ -77,7 +77,7 @@ function createToolContext(directory) {
 }
 
 describe("SessionContinuationPlugin", () => {
-  test("registers a tool that creates a continuation child session", async () => {
+  test("registers a tool that creates a continuation root session", async () => {
     const { client, sessionCreates, sessionPrompts } = createClientRecorder()
     const hooks = await SessionContinuationPlugin({
       client,
@@ -94,15 +94,15 @@ describe("SessionContinuationPlugin", () => {
     expect(sessionCreates).toEqual([
       {
         query: { directory: "/repo" },
-        body: { parentID: "ses_test", title: "Continue issue #42" },
+        body: { title: "Continue issue #42" },
       },
     ])
     expect(sessionPrompts).toHaveLength(1)
-    expect(sessionPrompts[0].path).toEqual({ id: "ses_child" })
+    expect(sessionPrompts[0].path).toEqual({ id: "ses_root" })
     expect(sessionPrompts[0].query).toEqual({ directory: "/repo" })
     expect(sessionPrompts[0].body.agent).toBe("build")
     expect(sessionPrompts[0].body.parts[0].text).toContain("Read docs/agents/runtime/context-checkpoint.yaml first.")
-    expect(result.metadata.childSessionID).toBe("ses_child")
+    expect(result.metadata.rootSessionID).toBe("ses_root")
   })
 
   test("falls back to build agent when request agent is not a safe primary agent", async () => {
@@ -151,14 +151,14 @@ describe("SessionContinuationPlugin", () => {
 
       const result = JSON.parse(await readFile(resultPath, "utf-8"))
       expect(result.status).toBe("error")
-      expect(result.parentSessionID).toBe("ses_parent")
+      expect(result.sourceSessionID).toBe("ses_parent")
       expect(result.error).toContain("session.promptAsync failed")
     } finally {
       await rm(worktree, { recursive: true, force: true })
     }
   })
 
-  test("consumes new-session marker and records child session result", async () => {
+  test("consumes new-session marker and records root session result", async () => {
     const worktree = await mkdtemp(join(process.cwd(), ".tmp-compact-plugin-"))
     try {
       const runtimeDir = join(worktree, ".opencode/runtime")
@@ -184,18 +184,18 @@ describe("SessionContinuationPlugin", () => {
       expect(sessionCreates).toEqual([
         {
           query: { directory: worktree },
-          body: { parentID: "ses_parent", title: "Continue issue #42" },
+          body: { title: "Continue issue #42" },
         },
       ])
-      expect(sessionPrompts[0].path).toEqual({ id: "ses_child" })
+      expect(sessionPrompts[0].path).toEqual({ id: "ses_root" })
       expect(await pathExists(requestPath)).toBe(false)
       const result = JSON.parse(await readFile(resultPath, "utf-8"))
       expect(result.status).toBe("success")
-      expect(result.parentSessionID).toBe("ses_parent")
-      expect(result.childSessionID).toBe("ses_child")
+      expect(result.sourceSessionID).toBe("ses_parent")
+      expect(result.rootSessionID).toBe("ses_root")
       expect(result.tuiResumeCommand).toBe("/sessions")
-      expect(result.cliOpenCommand).toBe("opencode --session ses_child")
-      expect(result.recommendedAction).toContain("ses_child")
+      expect(result.cliOpenCommand).toBe("opencode --session ses_root")
+      expect(result.recommendedAction).toContain("ses_root")
     } finally {
       await rm(worktree, { recursive: true, force: true })
     }
