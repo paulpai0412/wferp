@@ -1,9 +1,9 @@
-# pyright: reportUnknownVariableType=false
-
 import json
+from typing import Protocol, cast
 
 from pytest import MonkeyPatch
 
+import skill_scripts.governed_query as governed_query_module
 from skill_scripts.dashboard_canvas import DashboardCanvas, create_dashboard_chart_draft
 from skill_scripts.dashboard_publish import (
     DashboardDraft,
@@ -18,7 +18,7 @@ from skill_scripts.dashboard_publish import (
 )
 from skill_scripts.design_template_catalog import select_design_template
 from skill_scripts.execution_validator import ExecutionExpectation
-from skill_scripts.governed_query import approve_query_result, run_governed_query
+from skill_scripts.governed_query import GovernedQueryResult, approve_query_result
 from skill_scripts.sql_router import RoutingOptions
 
 
@@ -66,7 +66,22 @@ class _FakePublishedDashboardDataSource:
         return {"rows": [{"MK002": "2026", "MK006": 1000.0}], "reason": reason}
 
 
+ChartPayload = dict[str, object]
+
+
+class _RunGovernedQuery(Protocol):
+    def __call__(
+        self,
+        prompt: str,
+        bundle: dict[str, list[dict[str, str]]],
+        options: RoutingOptions,
+        db_client: _FakeDbClient,
+        sample_rows_limit: int = 5,
+    ) -> GovernedQueryResult: ...
+
+
 def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatch: MonkeyPatch) -> None:
+    run_governed_query = cast(_RunGovernedQuery, governed_query_module.run_governed_query)
     monkeypatch.setenv(
         "LLM_MOCK_RESPONSE",
         json.dumps(
@@ -79,7 +94,7 @@ def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatc
             ensure_ascii=False,
         ),
     )
-    query_result = run_governed_query(
+    query_result: GovernedQueryResult = run_governed_query(
         prompt="查詢2026年的工程預算明細",
         bundle=_bundle(),
         options=RoutingOptions(
@@ -92,7 +107,7 @@ def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatc
         db_client=_FakeDbClient(),
     )
 
-    chart_payload = {
+    chart_payload: ChartPayload = {
         "chart_type": "bar",
         "title": "2026 Budget",
         "x_field": "MK002",
