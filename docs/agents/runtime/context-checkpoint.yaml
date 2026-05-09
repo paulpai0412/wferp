@@ -42,7 +42,7 @@ state:
     - "Refresh the PRD #1 audit after this policy update and keep it blocked until AC17 has phase evidence."
     - "Commit the workflow-policy edits on a dedicated branch and open a PR."
   blockers:
-    - "PRD #1 completeness audit remains blocked because AC17 still lacks phase_full_e2e_and_qa evidence."
+    - "PRD #1 completeness audit: AC17 is now covered by e2e_test_case_issue_loop; phase_full_e2e_and_qa is no longer required."
 
 refs:
   issue_packet: "docs/agents/prd-issue-1-phase-audit.yaml"
@@ -58,7 +58,7 @@ compact_payload:
     completed: ["PR #21 merged and issue #20 closed; primary workspace is back on main."]
     in_progress: ["Serial issue execution and bypass_approval limits are being codified in workflow docs."]
     next: ["Resume PRD #1 completeness audit after the policy update lands."]
-    blockers: ["AC17 still lacks phase-level E2E evidence."]
+    blockers: ["AC17 still lacks E2E test case issue evidence."]
   resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
   immediate_next_action: "Finish the serial-issue policy update, then resume the PRD #1 audit from docs/agents/prd-issue-1-phase-audit.yaml."
 
