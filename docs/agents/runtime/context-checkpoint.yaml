@@ -3,10 +3,10 @@ kind: context_checkpoint
 line_cap: 80
 
 subject:
-  issue_number: "28"
-  branch: "agent/issue-28-ac17-e2e-test-case"
+  issue_number: "31"
+  branch: "agent/issue-31-deterministic-actmk-sql-correctness"
   role: "main_orchestrator"
-  checkpoint_reason: "e2e_test_case_issue_loop_materialized_ac17"
+  checkpoint_reason: "release_worker_post_merge_hygiene"
 
 context_budget:
   warning_at_percent: 45
@@ -20,7 +20,7 @@ resume_policy:
   raw_evidence_policy: "index_only; raw logs/traces stay in artifact bundle"
 
 runtime_controls:
-  approval_override_mode: "none"
+  approval_override_mode: "bypass_approval"
   default_merge_approval_mode: "human_required"
   set_only_at_workflow_start: true
   mutable_after_start: false
@@ -28,7 +28,7 @@ runtime_controls:
   applies_to: "all_prs_created_by_this_run"
   affects_stage: "release_worker_only"
   override_source: "workflow_start"
-  human_approval_skipped: false
+  human_approval_skipped: true
 
 state:
   completed:
@@ -36,43 +36,44 @@ state:
     - "Issue #6 completed full worker -> verifier -> release_worker flow and merged via PR #18."
     - "Issue #20 rebuilt repo-local issue #2 traceability and merged via PR #21 (acb13e1)."
     - "PRD #1 phase audit passed; AC17 follow-up moved to the E2E test case issue loop."
+    - "Issue #28 / E2E-001 passed verifier evidence, merged via PR #29 (5ba3269), and the issue is now closed."
+    - "Issue #31 / E2E-002 passed verifier evidence and merged via PR #35 (3813948)."
   in_progress:
-    - "Issue #28 / E2E-001 is on PR #29 with fresh verifier evidence recorded on the CLI/library MVP target case."
+    - "Post-merge release summaries for issue #31 are being recorded."
   next:
-    - "Hand PR #29 to release_worker for mergeability and approval-policy review."
-    - "If release_worker passes, request human merge review without rerunning verifier acceptance QA."
+    - "Close issue #31 after compact release and hygiene summaries are posted."
   blockers:
-    - "None; execution is serial and issue #28 is the active E2E test case issue."
+    - "Issues #32 and #33 depend on issue #31; issue #34 depends on issue #32."
 
 refs:
-  issue_packet: "docs/agents/issue-packets/issue-28.yaml"
-  worker_result: "docs/agents/worker-results/issue-28.yaml"
-  evidence_packet: "docs/agents/evidence/issue-28-pr-29.yaml"
-  handoff: "docs/agents/handoffs/issue-28.yaml"
-  artifact_bundle: "https://github.com/paulpai0412/wferp/issues/28"
+  issue_packet: "docs/agents/issue-packets/issue-31.yaml"
+  worker_result: "docs/agents/worker-results/issue-31.yaml"
+  evidence_packet: "docs/agents/evidence/issue-31-pr-35.yaml"
+  handoff: "docs/agents/handoffs/issue-31.yaml"
+  artifact_bundle: "https://github.com/paulpai0412/wferp/issues/31"
 
 compact_payload:
-  active_target: {issue_number: "28", branch: "agent/issue-28-ac17-e2e-test-case", role: "main_orchestrator", next_flow: "e2e_test_case_issue_loop"}
-  authoritative_refs: ["docs/agents/issue-packets/issue-28.yaml", "docs/agents/e2e/test-case-catalog.yaml", "docs/agents/e2e/test-case-issue-loop.md", "docs/agents/autonomous-development-workflow.yaml"]
+  active_target: {issue_number: "31", branch: "agent/issue-31-deterministic-actmk-sql-correctness", role: "main_orchestrator", next_flow: "release_worker"}
+  authoritative_refs: ["docs/agents/issue-packets/issue-31.yaml", "docs/agents/handoffs/issue-31.yaml", "docs/agents/evidence/issue-31-pr-35.yaml", "docs/agents/autonomous-development-workflow.yaml"]
   state_snapshot:
-    completed: ["E2E-001 issue #28 created and cataloged for PRD #1 AC17."]
-    in_progress: ["Issue #28 PR #29 now has verifier-owned acceptance evidence for E2E-001."]
-    next: ["Route PR #29 to release_worker and then human merge review if policy allows."]
-    blockers: ["none"]
+    completed: ["Issue #31 verifier evidence passed and PR #35 merged at 3813948."]
+    in_progress: ["Issue #31 release summaries and closeout are being recorded."]
+    next: ["Close issue #31, then continue serially to downstream E2E issues."]
+    blockers: ["none for issue #31 release"]
   resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
-  immediate_next_action: "Hand PR #29 to release_worker for mergeability/approval-policy review, then queue human merge review if unblocked."
+  immediate_next_action: "Close issue #31 after compact release and hygiene summaries are posted."
 
 post_merge_workspace_hygiene:
-  primary_workspace_branch_before: "agent/issue-6-published-dashboard-link-runtime"
+  primary_workspace_branch_before: "agent/issue-31-deterministic-actmk-sql-correctness"
   primary_workspace_branch_after: "main"
   dirty_state_detected: true
-  wip_branch_created: "agent/wip-prd-audit-normalization"
+  wip_branch_created: "agent/wip/post-merge-issue-31-20260509-2135"
   stash_created: "stash@{0}"
   workspace_clean_after: true
-  issue_worktree_removed: "false"
+  issue_worktree_removed: true
   cleanup_status: "pass"
   blocked_reason: "none"
 
 metadata:
-  updated_by: "Hephaestus"
-  updated_at: "2026-05-09T17:20:00+08:00"
+  updated_by: "release_worker"
+  updated_at: "2026-05-09T21:35:00+08:00"
