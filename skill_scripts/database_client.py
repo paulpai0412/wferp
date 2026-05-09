@@ -1,9 +1,47 @@
 from dataclasses import dataclass, replace
 import importlib
 import os
-from typing import Any
+from typing import Protocol, cast
 
 from skill_scripts.sql2000_guard import validate_sql
+
+
+class _CursorProtocol(Protocol):
+    description: object | None
+
+    def execute(self, sql: str) -> object: ...
+
+    def fetchall(self) -> list[tuple[object, ...]]: ...
+
+
+class _ConnectionProtocol(Protocol):
+    def cursor(self) -> _CursorProtocol: ...
+
+    def close(self) -> object: ...
+
+
+class _PymssqlModuleProtocol(Protocol):
+    def connect(
+        self,
+        *,
+        server: str,
+        user: str,
+        password: str,
+        database: str,
+        port: int | None = None,
+    ) -> _ConnectionProtocol: ...
+
+
+class _PyodbcModuleProtocol(Protocol):
+    def connect(self, connection_string: str) -> _ConnectionProtocol: ...
+
+
+def _load_pymssql_module() -> _PymssqlModuleProtocol:
+    return cast(_PymssqlModuleProtocol, cast(object, importlib.import_module("pymssql")))
+
+
+def _load_pyodbc_module() -> _PyodbcModuleProtocol:
+    return cast(_PyodbcModuleProtocol, cast(object, importlib.import_module("pyodbc")))
 
 
 @dataclass(frozen=True)
@@ -90,6 +128,8 @@ class DatabaseConfig:
 
 
 class DatabaseClient:
+    config: DatabaseConfig
+
     def __init__(self, config: DatabaseConfig):
         self.config = config
 
@@ -122,20 +162,24 @@ class DatabaseClient:
         if not conn_str:
             return False, "DB_CONNECTION_NOT_CONFIGURED"
 
-        if self.config.driver == "mssql" and self.config.auth_mode == "sql_auth" and not self.config.password:
+        parsed = self._parse_kv_connection_string(conn_str)
+        password = parsed.get("password", parsed.get("pwd", self.config.password))
+        username = parsed.get("user", parsed.get("uid", self.config.username))
+
+        if self.config.driver == "mssql" and self.config.auth_mode == "sql_auth" and not password:
             return False, "DB_PASSWORD_MISSING"
 
-        if self.config.auth_mode == "windows_domain" and not self.config.username:
+        if self.config.auth_mode == "windows_domain" and not username:
             return False, "DB_USERNAME_MISSING"
 
         return True, "OK"
 
-    def _connect(self):
+    def _connect(self) -> _ConnectionProtocol:
         conn_str = self.config.resolved_connection_string()
 
         if self.config.driver == "mssql":
             try:
-                pymssql = importlib.import_module("pymssql")
+                pymssql = _load_pymssql_module()
             except ImportError as exc:
                 raise RuntimeError("DB_DRIVER_NOT_INSTALLED") from exc
             try:
@@ -146,21 +190,27 @@ class DatabaseClient:
                 database = cfg.get("database", cfg.get("initial catalog", self.config.database))
 
                 host, parsed_port = self._split_server_and_port(server)
-                kwargs: dict[str, Any] = {
-                    "server": host or self.config.host,
-                    "user": user,
-                    "password": password,
-                    "database": database,
-                }
-                if parsed_port is not None:
-                    kwargs["port"] = parsed_port
-                return pymssql.connect(**kwargs)
+                server_host = host or self.config.host
+                if parsed_port is None:
+                    return pymssql.connect(
+                        server=server_host,
+                        user=user,
+                        password=password,
+                        database=database,
+                    )
+                return pymssql.connect(
+                    server=server_host,
+                    user=user,
+                    password=password,
+                    database=database,
+                    port=parsed_port,
+                )
             except Exception as exc:
                 raise RuntimeError("DB_CONNECTION_FAILED") from exc
 
         if self.config.driver == "pyodbc":
             try:
-                pyodbc = importlib.import_module("pyodbc")
+                pyodbc = _load_pyodbc_module()
             except ImportError as exc:
                 raise RuntimeError("DB_DRIVER_NOT_INSTALLED") from exc
             try:
@@ -170,7 +220,7 @@ class DatabaseClient:
 
         raise RuntimeError("DB_DRIVER_UNSUPPORTED")
 
-    def execute_readonly(self, sql: str) -> list[dict[str, Any]]:
+    def execute_readonly(self, sql: str) -> list[dict[str, object]]:
         ok, code = validate_sql(sql)
         if not ok:
             raise RuntimeError(code)
@@ -178,8 +228,9 @@ class DatabaseClient:
         conn = self._connect()
         try:
             cur = conn.cursor()
-            cur.execute(sql)
-            columns = [str(col[0]) for col in cur.description] if cur.description else []
+            _ = cur.execute(sql)
+            description = cast(list[tuple[object, ...]] | None, cur.description)
+            columns = [str(col[0]) for col in description] if description else []
             rows = cur.fetchall()
             return [{columns[i]: row[i] for i in range(len(columns))} for row in rows]
         except RuntimeError:
@@ -188,6 +239,6 @@ class DatabaseClient:
             raise RuntimeError("DB_EXECUTION_FAILED") from exc
         finally:
             try:
-                conn.close()
+                _ = conn.close()
             except Exception:
                 pass

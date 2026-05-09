@@ -1,7 +1,9 @@
+from pytest import MonkeyPatch
+
 from skill_scripts.database_client import DatabaseClient, DatabaseConfig
 
 
-def test_database_config_reads_environment_values(monkeypatch):
+def test_database_config_reads_environment_values(monkeypatch: MonkeyPatch):
     monkeypatch.setenv("DB_DRIVER", "mssql")
     monkeypatch.setenv("DB_CONNECTION_STRING", "Server=127.0.0.1;Database=wferp_test;")
     monkeypatch.setenv("DB_ENV", "test")
@@ -47,7 +49,7 @@ def test_database_config_builds_domain_username_for_mssql():
     assert "user=ACME\\alice;" in cfg.resolved_connection_string()
 
 
-def test_database_client_health_check_missing_connection(monkeypatch):
+def test_database_client_health_check_missing_connection(monkeypatch: MonkeyPatch):
     monkeypatch.delenv("DB_CONNECTION_STRING", raising=False)
     cfg = DatabaseConfig.from_env().with_overrides(connection_string="")
     client = DatabaseClient(cfg)
@@ -56,23 +58,43 @@ def test_database_client_health_check_missing_connection(monkeypatch):
     assert code == "DB_PASSWORD_MISSING"
 
 
-def test_database_client_execute_readonly_normalizes_driver_errors():
-    class _BadCursor:
-        description = [("MK002",)]
+def test_database_client_health_check_accepts_password_from_connection_string():
+    cfg = DatabaseConfig(
+        driver="mssql",
+        connection_string="server=127.0.0.1:1433;user=sa;password=Passw0rd!234;database=wferp_test",
+        auth_mode="sql_auth",
+        env="test",
+        host="127.0.0.1",
+        port=1433,
+        database="wferp_test",
+        username="",
+        password="",
+        domain="",
+        odbc_driver="ODBC Driver 18 for SQL Server",
+    )
+    client = DatabaseClient(cfg)
+    ok, code = client.health_check()
+    assert ok is True
+    assert code == "OK"
 
-        def execute(self, sql: str):
+
+def test_database_client_execute_readonly_normalizes_driver_errors(monkeypatch: MonkeyPatch):
+    class _BadCursor:
+        description: object | None = [("MK002",)]
+
+        def execute(self, sql: str) -> object:
+            _ = sql
             raise ValueError("driver execute failed")
 
+        def fetchall(self) -> list[tuple[object, ...]]:
+            return []
+
     class _BadConnection:
-        def cursor(self):
+        def cursor(self) -> _BadCursor:
             return _BadCursor()
 
-        def close(self):
+        def close(self) -> object:
             return None
-
-    class _TestClient(DatabaseClient):
-        def _connect(self):
-            return _BadConnection()
 
     cfg = DatabaseConfig(
         driver="mssql",
@@ -88,40 +110,42 @@ def test_database_client_execute_readonly_normalizes_driver_errors():
         odbc_driver="ODBC Driver 18 for SQL Server",
     )
 
-    client = _TestClient(cfg)
+    client = DatabaseClient(cfg)
+    monkeypatch.setattr(client, "_connect", lambda: _BadConnection())
     try:
-        client.execute_readonly("SELECT [MK002] FROM [VPIC1].[dbo].[ACTMK]")
+        _ = client.execute_readonly("SELECT [MK002] FROM [VPIC1].[dbo].[ACTMK]")
         assert False, "expected RuntimeError"
     except RuntimeError as exc:
         assert str(exc) == "DB_EXECUTION_FAILED"
 
 
-def test_database_client_mssql_connect_uses_parsed_connection_fields(monkeypatch):
+def test_database_client_mssql_connect_uses_parsed_connection_fields(monkeypatch: MonkeyPatch):
     captured: dict[str, object] = {}
 
     class _FakeConnection:
-        def cursor(self):
+        def cursor(self) -> object:
             class _Cursor:
-                description = [("MK002",), ("MK006",)]
+                description: object | None = [("MK002",), ("MK006",)]
 
-                def execute(self, sql: str):
+                def execute(self, sql: str) -> object:
+                    _ = sql
                     return None
 
-                def fetchall(self):
+                def fetchall(self) -> list[tuple[object, ...]]:
                     return [("2026", 100000.0)]
 
             return _Cursor()
 
-        def close(self):
+        def close(self) -> object:
             return None
 
     class _FakePymssql:
         @staticmethod
-        def connect(**kwargs):
+        def connect(**kwargs: object) -> object:
             captured.update(kwargs)
             return _FakeConnection()
 
-    def _fake_import(name: str):
+    def _fake_import(name: str) -> object:
         assert name == "pymssql"
         return _FakePymssql
 
