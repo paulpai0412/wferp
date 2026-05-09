@@ -29,6 +29,8 @@ proof_of_separation:
 
 status: "<pass|blocked|fail>"
 
+test_case_verification: {applies: false, test_case_id: "<E2E-id-or-empty>", target_case: "<pass|blocked|fail|n/a>", regression_bucket: "<pass|blocked|fail|n/a>", failure_signature: "<stable-signature-or-none>", artifact_manifest_ref: "<bundle-ref-or-empty>"}
+
 acceptance_criteria_matrix:
   - {ac_id: "AC1", status: "<pass|blocked|fail>", evidence_ref: "<artifact-id-or-handoff-path>", note: "<one-line observed result>"}
 
