@@ -5,7 +5,7 @@ import type { TuiPluginModule } from "@opencode-ai/plugin/dist/tui"
 
 type NewSessionResult = {
   status?: "success" | "error"
-  childSessionID?: string
+  rootSessionID?: string
   title?: string
   error?: string
 }
@@ -25,12 +25,12 @@ const SessionContinuationTuiPlugin: TuiPluginModule = {
   tui: async (api) => {
     api.command.register(() => [
       {
-        title: "Open last child session",
-        value: "open-last-child-session",
-        description: "Open the latest continuation child session recorded by the session continuation plugin.",
+        title: "Open last root session",
+        value: "open-last-root-session",
+        description: "Open the latest continuation root session recorded by the session continuation plugin.",
         category: "Session",
         slash: {
-          name: "open-last-child-session",
+          name: "open-last-root-session",
         },
         onSelect: async () => {
           const result = await readLatestSessionResult(api.state.path.worktree)
@@ -42,21 +42,21 @@ const SessionContinuationTuiPlugin: TuiPluginModule = {
             })
             return
           }
-          if (result.status !== "success" || !result.childSessionID) {
+          if (result.status !== "success" || !result.rootSessionID) {
             api.ui.toast({
               variant: "error",
-              title: "Child session unavailable",
-              message: result.error ?? "The latest continuation result does not contain a child session.",
+              title: "Root session unavailable",
+              message: result.error ?? "The latest continuation result does not contain a root session.",
             })
             return
           }
-          api.route.navigate("session", { sessionID: result.childSessionID })
+          api.route.navigate("session", { sessionID: result.rootSessionID })
           api.ui.toast({
             variant: "success",
-            title: "Opened child session",
+            title: "Opened root session",
             message: result.title
-              ? `Switched to ${result.childSessionID} (${result.title}).`
-              : `Switched to ${result.childSessionID}.`,
+              ? `Switched to ${result.rootSessionID} (${result.title}).`
+              : `Switched to ${result.rootSessionID}.`,
           })
         },
       },
