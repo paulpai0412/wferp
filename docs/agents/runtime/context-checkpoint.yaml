@@ -3,10 +3,10 @@ kind: context_checkpoint
 line_cap: 80
 
 subject:
-  issue_number: "31"
-  branch: "agent/issue-31-deterministic-actmk-sql-correctness"
+  issue_number: "32"
+  branch: "agent/issue-32-prompt-to-published-dashboard-e2e"
   role: "main_orchestrator"
-  checkpoint_reason: "release_worker_post_merge_hygiene"
+  checkpoint_reason: "phase1_issue_selection_issue32"
 
 context_budget:
   warning_at_percent: 45
@@ -39,29 +39,29 @@ state:
     - "Issue #28 / E2E-001 passed verifier evidence, merged via PR #29 (5ba3269), and the issue is now closed."
     - "Issue #31 / E2E-002 passed verifier evidence and merged via PR #35 (3813948)."
   in_progress:
-    - "Issue #31 released via PR #35 and closed; repo-local evidence metadata has been backfilled on main."
+    - "Issue #32 selected as next unblocked ready-for-agent E2E issue after #31 release."
   next:
-    - "Select the next unblocked ready-for-agent E2E issue in dependency order."
+    - "Spawn a fresh issue worker for issue #32 using docs/agents/issue-packets/issue-32.yaml."
   blockers:
-    - "Issues #32 and #33 depend on issue #31; issue #34 depends on issue #32."
+    - "Issue #34 remains blocked by issue #32; issue #33 is also unblocked but waits due serial execution."
 
 refs:
-  issue_packet: "docs/agents/issue-packets/issue-31.yaml"
-  worker_result: "docs/agents/worker-results/issue-31.yaml"
-  evidence_packet: "docs/agents/evidence/issue-31-pr-35.yaml"
-  handoff: "docs/agents/handoffs/issue-31.yaml"
-  artifact_bundle: "https://github.com/paulpai0412/wferp/issues/31"
+  issue_packet: "docs/agents/issue-packets/issue-32.yaml"
+  worker_result: ""
+  evidence_packet: ""
+  handoff: "docs/agents/handoffs/issue-32.yaml"
+  artifact_bundle: "https://github.com/paulpai0412/wferp/issues/32"
 
 compact_payload:
-  active_target: {issue_number: "31", branch: "agent/issue-31-deterministic-actmk-sql-correctness", role: "main_orchestrator", next_flow: "release_worker"}
-  authoritative_refs: ["docs/agents/issue-packets/issue-31.yaml", "docs/agents/handoffs/issue-31.yaml", "docs/agents/evidence/issue-31-pr-35.yaml", "docs/agents/autonomous-development-workflow.yaml"]
+  active_target: {issue_number: "32", branch: "agent/issue-32-prompt-to-published-dashboard-e2e", role: "main_orchestrator", next_flow: "per_issue_flow"}
+  authoritative_refs: ["docs/agents/issue-packets/issue-32.yaml", "docs/agents/handoffs/issue-32.yaml", "docs/agents/autonomous-development-workflow.yaml"]
   state_snapshot:
     completed: ["Issue #31 verifier evidence passed and PR #35 merged at 3813948."]
-    in_progress: ["Issue #31 released via PR #35 and closed; repo-local evidence metadata has been backfilled on main."]
-    next: ["Select the next unblocked ready-for-agent E2E issue in dependency order."]
-    blockers: ["none for issue #31 release"]
+    in_progress: ["Issue #32 selected and packet/handoff prepared for fresh worker pickup."]
+    next: ["Spawn a fresh issue worker for issue #32."]
+    blockers: ["Issue #34 remains blocked by issue #32; issue #33 waits due serial execution."]
   resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
-  immediate_next_action: "Select the next unblocked ready-for-agent E2E issue in dependency order."
+  immediate_next_action: "Spawn a fresh issue worker for issue #32 using docs/agents/issue-packets/issue-32.yaml."
 
 post_merge_workspace_hygiene:
   primary_workspace_branch_before: "agent/issue-31-deterministic-actmk-sql-correctness"
@@ -76,4 +76,4 @@ post_merge_workspace_hygiene:
 
 metadata:
   updated_by: "Hephaestus"
-  updated_at: "2026-05-09T21:51:00+08:00"
+  updated_at: "2026-05-09T22:07:00+08:00"
