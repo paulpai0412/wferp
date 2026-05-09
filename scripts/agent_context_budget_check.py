@@ -7,18 +7,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-LINE_CAPS = {
-    "docs/agents/issue-packet-template.yaml": 80,
-    "docs/agents/worker-result-template.yaml": 80,
-    "docs/agents/evidence-packet-template.yaml": 60,
-    "docs/agents/runtime/context-checkpoint.yaml": 80,
-    "docs/agents/issue-packets/issue-16.yaml": 80,
-    "docs/agents/issue-packets/issue-20.yaml": 80,
-    "docs/agents/evidence/issue-2-pr-8.yaml": 60,
-    "docs/agents/worker-results/issue-20.yaml": 80,
-    "docs/agents/handoffs/issue-2.yaml": 35,
-    "docs/agents/handoffs/issue-16.yaml": 35,
-    "docs/agents/handoffs/issue-20.yaml": 35,
+EXPECTED_LINE_CAP_BY_KIND = {
+    "context_checkpoint": 80,
+    "evidence_packet": 60,
+    "failure_registry": 80,
+    "issue_handoff": 35,
+    "issue_packet": 80,
+    "prd_phase_audit": 80,
+    "refactor_candidate_audit": 80,
+    "test_case_catalog": 80,
+    "worker_result": 80,
 }
 
 REQUIRED_TEXT = {
@@ -77,28 +75,76 @@ REQUIRED_TEXT = {
 }
 
 
-def rel(path: str) -> Path:
-    return ROOT / path
+def rel(path: str, *, root: Path = ROOT) -> Path:
+    return root / path
 
 
 def line_count(path: Path) -> int:
     return len(path.read_text(encoding="utf-8").splitlines())
 
 
-def main() -> int:
+def top_level_scalar(text: str, key: str) -> str:
+    prefix = f"{key}:"
+    for line in text.splitlines():
+        if line.startswith(prefix):
+            return line.split(":", 1)[1].strip().strip('"')
+    return ""
+
+
+def is_pre_enforcement_artifact(text: str) -> bool:
+    return "pre_enforcement: true" in text
+
+
+def iter_governed_artifacts(root: Path = ROOT) -> list[Path]:
+    agents_root = root / "docs/agents"
+    if not agents_root.exists():
+        return []
+    return sorted(path for path in agents_root.glob("**/*.yaml") if path.is_file())
+
+
+def artifact_cap_failures(root: Path = ROOT) -> list[str]:
     failures: list[str] = []
 
-    for artifact, cap in LINE_CAPS.items():
-        path = rel(artifact)
-        if not path.exists():
-            failures.append(f"missing: {artifact}")
+    for path in iter_governed_artifacts(root):
+        text = path.read_text(encoding="utf-8")
+        kind = top_level_scalar(text, "kind")
+        if kind not in EXPECTED_LINE_CAP_BY_KIND:
             continue
+        if is_pre_enforcement_artifact(text):
+            continue
+
+        expected_cap = EXPECTED_LINE_CAP_BY_KIND[kind]
+        relative_path = str(path.relative_to(root))
+        declared_cap = top_level_scalar(text, "line_cap")
+        if not declared_cap:
+            failures.append(
+                f"missing line_cap in {relative_path}: expected {expected_cap} for kind {kind}"
+            )
+            continue
+
+        try:
+            parsed_cap = int(declared_cap)
+        except ValueError:
+            failures.append(f"invalid line_cap in {relative_path}: {declared_cap}")
+            continue
+
+        if parsed_cap != expected_cap:
+            failures.append(
+                f"wrong line_cap in {relative_path}: declared {parsed_cap}, expected {expected_cap} for kind {kind}"
+            )
+
         count = line_count(path)
-        if count > cap:
-            failures.append(f"over cap: {artifact} has {count} lines > {cap}")
+        if count > expected_cap:
+            failures.append(f"over cap: {relative_path} has {count} lines > {expected_cap}")
+
+    return failures
+
+
+def required_text_failures(root: Path = ROOT) -> list[str]:
+    failures: list[str] = []
 
     for artifact, required_strings in REQUIRED_TEXT.items():
-        path = rel(artifact)
+        path = rel(artifact, root=root)
         if not path.exists():
             failures.append(f"missing: {artifact}")
             continue
@@ -107,14 +153,28 @@ def main() -> int:
             if required not in text:
                 failures.append(f"missing text in {artifact}: {required}")
 
+    return failures
+
+
+def main() -> int:
+    failures = artifact_cap_failures() + required_text_failures()
+
     if failures:
         print("context budget gate: fail")
         for failure in failures:
             print(f"- {failure}")
         return 1
 
+    governed_artifacts = [
+        path
+        for path in iter_governed_artifacts()
+        if top_level_scalar(path.read_text(encoding="utf-8"), "kind") in EXPECTED_LINE_CAP_BY_KIND
+        and not is_pre_enforcement_artifact(path.read_text(encoding="utf-8"))
+    ]
     print("context budget gate: pass")
-    print(f"checked {len(LINE_CAPS)} caps and {len(REQUIRED_TEXT)} policy files")
+    print(
+        f"checked {len(governed_artifacts)} governed artifacts and {len(REQUIRED_TEXT)} policy files"
+    )
     return 0
 
 
