@@ -1,5 +1,8 @@
 schema_version: "1.0"
 kind: issue_packet
+legacy_note:
+  pre_enforcement: true
+  limitation: "Full-form issue packet retained from before compact line-cap enforcement; excluded from the generic compact-artifact gate."
 
 issue:
   number: "5"

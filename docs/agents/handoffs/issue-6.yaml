@@ -1,5 +1,6 @@
 schema_version: "1.0"
 kind: issue_handoff
+line_cap: 35
 issue_identity:
   number: "6"
   title: "Published Dashboard Link and view-only runtime"
