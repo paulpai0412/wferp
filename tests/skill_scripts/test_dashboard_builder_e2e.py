@@ -18,7 +18,7 @@ from skill_scripts.dashboard_publish import (
 )
 from skill_scripts.design_template_catalog import select_design_template
 from skill_scripts.execution_validator import ExecutionExpectation
-from skill_scripts.governed_query import GovernedQueryResult, approve_query_result
+from skill_scripts.governed_query import GovernedQueryResult, approve_query_result, capture_live_llm_query_evidence
 from skill_scripts.sql_router import RoutingOptions
 
 
@@ -198,3 +198,27 @@ def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatc
     assert denied["code"] == "LINK_TOKEN_REVOKED"
     assert denied["dashboard"] is None
     assert denied["data"] is None
+
+
+def test_live_llm_governed_query_evidence_is_non_blocking_when_provider_unavailable() -> None:
+    evidence = capture_live_llm_query_evidence(
+        prompt="查詢2026年的工程預算明細",
+        bundle=_bundle(),
+        options=RoutingOptions(
+            mode="llm-first",
+            llm_provider="none",
+            llm_model="none",
+            min_confidence=0.5,
+            execution_expectation=ExecutionExpectation(required_columns=["MK002", "MK006"], min_rows=1),
+        ),
+        db_client=_FakeDbClient(),
+    )
+
+    assert evidence == {
+        "prompt": "查詢2026年的工程預算明細",
+        "status": "failed",
+        "failure_classification": "llm_availability",
+        "blocking": False,
+        "evidence_type": "live_llm_governed_query",
+        "error_code": "LLM_PROVIDER_NOT_CONFIGURED",
+    }
