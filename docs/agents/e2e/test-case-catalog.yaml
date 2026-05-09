@@ -17,16 +17,17 @@ update_policy:
 
 entries:
   - id: "E2E-001"
-    source: {type: "prd_ac", ref: "#1 AC17"}
-    issue: {number: "28", url: "https://github.com/paulpai0412/wferp/issues/28", labels: [ready-for-agent, e2e-test-case]}
-    surface: "cli"
-    status: "verified"
-    latest_pr: {number: "29", url: "https://github.com/paulpai0412/wferp/pull/29"}
-    latest_evidence_packet: "docs/agents/evidence/issue-28-pr-29.yaml"
+    source: {type: "prd_ac", ref: "#30 E2E-001"}
+    issue: {number: "32", url: "https://github.com/paulpai0412/wferp/issues/32", labels: [ready-for-agent, e2e-test-case]}
+    surface: "cli|library"
+    status: "in-progress"
+    latest_pr: {number: "", url: ""}
+    latest_evidence_packet: ""
     latest_failure_signature: "none"
+    prior_verified_refs: [{issue: "28", pr: "29", evidence_packet: "docs/agents/evidence/issue-28-pr-29.yaml", source: "#1 AC17"}]
     latest_refactor_refs: []
     affected_by_refactor: false
-    next_recommended_step: "Hand PR #29 to release_worker or human merge review; keep status verified until merged or blocked."
+    next_recommended_step: "Open the issue #32 worker PR, then spawn a fresh verifier for E2E-001 live evidence plus deterministic regression."
 
 entry_schema:
   id: "E2E-001"

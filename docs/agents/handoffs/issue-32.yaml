@@ -3,18 +3,19 @@ kind: issue_handoff
 line_cap: 35
 issue_identity: {number: "32", title: "E2E: Prompt-to-Published-Dashboard live LLM evidence", url: "https://github.com/paulpai0412/wferp/issues/32", branch: "agent/issue-32-prompt-to-published-dashboard-e2e", pr: ""}
 acceptance_criteria_evidence:
-  - {ac_id: "AC1", status: pending_worker, evidence_ref: "docs/agents/issue-packets/issue-32.yaml", note: "Worker must record live LLM governed-query evidence and classify live failures separately."}
-  - {ac_id: "AC2", status: pending_worker, evidence_ref: "tests/skill_scripts/test_chart_spec.py + tests/skill_scripts/test_dashboard_canvas.py", note: "Worker must prove approved query result can create MK006 bar Chart Spec and place it on canvas."}
-  - {ac_id: "AC3", status: pending_worker, evidence_ref: "tests/skill_scripts/test_dashboard_publish.py", note: "Worker must preserve final approval before publish and view-only link render."}
-  - {ac_id: "AC4", status: pending_worker, evidence_ref: "focused dashboard regression bucket", note: "Deterministic bucket must remain release gate independent from live LLM availability."}
-  - {ac_id: "AC5", status: pending_worker, evidence_ref: "worker-result + verifier evidence packet", note: "Final acceptance remains verifier-owned."}
+  - {ac_id: "AC1", status: worker_self_check_pass, evidence_ref: "skill_scripts/governed_query.py + tests/skill_scripts/test_dashboard_builder_e2e.py", note: "Worker records live LLM governed-query evidence separately and classifies provider-unavailable as non-blocking llm_availability."}
+  - {ac_id: "AC2", status: worker_self_check_pass, evidence_ref: "tests/skill_scripts/test_dashboard_builder_e2e.py", note: "Deterministic target covers approved query result to MK006 bar Chart Spec and Dashboard Canvas placement."}
+  - {ac_id: "AC3", status: worker_self_check_pass, evidence_ref: "tests/skill_scripts/test_dashboard_builder_e2e.py", note: "Target preserves final Analyst Approval before publish and view-only Published Dashboard Link render."}
+  - {ac_id: "AC4", status: worker_self_check_pass, evidence_ref: "focused dashboard regression bucket", note: "Required deterministic bucket passed independently from live LLM availability."}
+  - {ac_id: "AC5", status: worker_self_check_pass, evidence_ref: "docs/agents/worker-results/issue-32.yaml + docs/agents/handoffs/issue-32.yaml", note: "Worker artifacts are compact/index-only and final acceptance remains verifier-owned."}
 compact_verification_summary:
-  status: worker_pending
-  diagnostics_and_build_gate: "pending: fresh worker has not returned self-checks."
+  status: waiting_for_fresh_verifier
+  diagnostics_and_build_gate: "worker self-check pass: target case 2/2, deterministic bucket 45/45, py_compile passed; final gate belongs to verifier."
   surface_qa_gate: "pending: fresh verifier required after worker PR."
   review_gate: "pending: fresh verifier/review required after worker PR."
 evidence_packet_refs: {worker_result: "docs/agents/worker-results/issue-32.yaml", verifier_packet: "", pr: "", raw_evidence_policy: "Index-only refs in repo docs; raw logs stay outside main-agent context."}
 files_changed_summary:
-  - {path: "docs/agents/issue-packets/issue-32.yaml + docs/agents/handoffs/issue-32.yaml", summary: "Prepared compact issue #32 packet and pending handoff for fresh worker pickup."}
-blockers_or_risks: ["No browser UI exists; issue #32 must remain CLI/library only.", "Live LLM evidence is non-blocking by default; deterministic regression is the release gate."]
-next_recommended_step: "Spawn a fresh issue worker for issue #32 from docs/agents/issue-packets/issue-32.yaml."
+  - {path: "skill_scripts/governed_query.py + tests/skill_scripts/test_dashboard_builder_e2e.py", summary: "Adds compact non-blocking live LLM evidence classification beside the deterministic E2E-001 target case."}
+  - {path: "docs/agents/e2e/test-case-catalog.yaml + docs/agents/worker-results/issue-32.yaml + docs/agents/handoffs/issue-32.yaml", summary: "Records compact worker metadata for fresh verifier pickup while preserving issue #28 historical E2E-001 refs."}
+blockers_or_risks: ["Fresh verifier evidence is required before final acceptance.", "No browser UI exists; issue #32 remains CLI/library only.", "Live LLM evidence is non-blocking by default; deterministic regression is the release gate."]
+next_recommended_step: "Create the worker PR, then spawn a fresh verifier for issue #32 / E2E-001."
