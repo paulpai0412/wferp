@@ -26,6 +26,7 @@ When running inside this clone, `gh` can also infer the repository from `git rem
 - A final QA statement must identify the verifier packet and must not be written as a direct main-agent QA claim.
 - If no verifier packet exists, the issue or PR must be marked blocked for missing verification evidence instead of reporting tests or QA as passed.
 - Worker self-check summaries may be mentioned only as implementation feedback; they are not acceptance evidence unless independently confirmed by a verifier packet.
+- `verifier_read_worker_result_only: false` is allowed when the verifier also reads compact refs such as the issue packet, PR diff, checkpoint, or PR page; it must not import full worker transcripts or raw logs.
 - Artifact bodies must stay compact: issue packets <=80 lines, handoffs <=35 lines, evidence packets <=60 lines, checkpoints <=80 lines, and worker results <=80 lines.
 - Raw evidence is index-only in repo docs and main-agent context; keep full logs/traces/screenshots in external artifact bundles referenced by manifest IDs.
 - A `release_worker` may merge and close only after a verifier-owned evidence packet passes, the PR is mergeable, required checks pass, and human merge approval policy is satisfied; otherwise it must report blocked.

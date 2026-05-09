@@ -25,8 +25,8 @@ proof_of_separation:
   verifier_actor: "<verifier-worker-session-or-agent-name>"
   verifier_session_id: "<session-id-or-artifact-ref>"
   verifier_is_distinct_from_worker: true
+  # false allows other compact refs (issue packet, diff, checkpoint, PR page), never raw logs/transcripts.
   verifier_read_worker_result_only: true
-
 status: "<pass|blocked|fail>"
 
 test_case_verification: {applies: false, test_case_id: "<E2E-id-or-empty>", target_case: "<pass|blocked|fail|n/a>", regression_bucket: "<pass|blocked|fail|n/a>", failure_signature: "<stable-signature-or-none>", artifact_manifest_ref: "<bundle-ref-or-empty>"}
