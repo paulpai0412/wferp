@@ -1,5 +1,8 @@
 schema_version: "1.0"
 kind: issue_handoff
+legacy_note:
+  pre_enforcement: true
+  limitation: "Fresh verifier separation was recorded, but this full-form handoff predates compact line-cap enforcement and is retained as historical detail."
 issue_identity:
   number: "5"
   title: "Final Dashboard Approval and immutable publish"
