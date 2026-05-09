@@ -28,6 +28,9 @@ priority_bridge:
     allowed:
       - validate_worker_result_schema
       - validate_evidence_packet_schema
+      - validate_test_case_catalog_shape
+      - validate_failure_registry_shape
+      - validate_refactor_candidate_audit_shape
       - confirm_required_refs_exist
       - compare_acceptance_criteria_ids_to_evidence_refs
       - confirm_proof_of_separation_fields_are_present
@@ -176,6 +179,13 @@ global_gates:
       - goal_check_passes
       - changed_file_diagnostics_or_doc_review_passes
       - relevant_tests_or_not_applicable_reason_recorded
+  risk_gate:
+    applies_when:
+      - refactor_candidate_issue
+    pass_when:
+      - candidate_is_low_risk_with_high_or_medium_value
+      - or_medium_risk_has_regression_bucket_and_rollback_plan
+      - high_risk_candidate_is_ready_for_human_or_split_smaller
   security_gate:
     required: true
     pass_when:
@@ -383,6 +393,9 @@ artifact_caps_policy:
     evidence_packet: 60
     context_checkpoint: 80
     worker_result: 80
+    test_case_catalog: 80
+    failure_registry: 80
+    refactor_candidate_audit: 80
   templates_must_declare_caps: true
   script_gate: scripts/agent_context_budget_check.py
   forbidden_payloads:
@@ -505,6 +518,9 @@ session_isolation_policy:
       - verify_worker_and_verifier_refs_are_present
       - verify_acceptance_criteria_map_to_evidence_refs
       - verify_worker_verifier_proof_of_separation_is_present
+      - validate_test_case_catalog_shape
+      - validate_failure_registry_shape
+      - validate_refactor_candidate_audit_shape
       - update_handoff_and_tracker_with_compact_refs
     forbidden:
       - run_pytest
@@ -570,6 +586,8 @@ issue_packet_policy:
     - verification_plan
     - handoff_contract
     - result_contract
+  optional_fields:
+    - test_case
   forbidden_payloads:
     - full_orchestrator_transcript
     - unrelated_repo_search_dumps
@@ -589,6 +607,8 @@ worker_result_policy:
     - next_recommended_step
     - evidence_packet_refs
     - role_boundary
+  optional_fields:
+    - test_case_repair
   forbidden_payloads:
     - full_worker_transcript
     - long_form_chain_of_thought
@@ -602,6 +622,7 @@ evidence_packet_policy:
   required_for:
     - every_issue_pr_verifier_run
     - every_phase_cross_issue_verifier_run
+    - every_e2e_test_case_verifier_run
   storage_policy:
     repo_handoff_keeps: compact_summary_and_refs_only
     raw_evidence_kept_in: ci_or_local_artifact_bundle
@@ -618,6 +639,8 @@ evidence_packet_policy:
     - artifact_manifest
     - compact_summary
     - next_recommended_step
+  optional_fields:
+    - test_case_verification
   forbidden_payloads:
     - full_command_output
     - full_test_logs
@@ -625,6 +648,66 @@ evidence_packet_policy:
     - verbose_browser_trace
     - full_verifier_transcript
   line_cap: 60
+
+e2e_test_case_issue_loop:
+  spec_path: docs/agents/e2e/test-case-issue-loop.md
+  catalog_path: docs/agents/e2e/test-case-catalog.yaml
+  failure_registry_path: docs/agents/e2e/failure-registry.yaml
+  issue_unit: one_github_issue_per_executable_e2e_test_case
+  timing:
+    draft_intent_created_during: create_prd
+    executable_issue_materialized_after: feature_issue_verifier_passes
+  labels:
+    canonical_ready_label: ready-for-agent
+    supplemental: [e2e-test-case, blocked-by-spec, blocked-by-infra]
+  ready_for_agent_requires:
+    - source_ref_present
+    - setup_execution_and_expected_outcome_explicit
+    - surface_and_regression_bucket_declared
+    - evidence_requirements_index_only
+  same_issue_fix_allowed: [product, test, fixture, harness, test_data_seed]
+  worker_forbidden_changes:
+    - weaken_assertions
+    - change_expected_outcome_without_spec_repair_issue
+    - claim_final_e2e_acceptance
+  loop_control:
+    max_worker_verifier_cycles: 3
+    max_same_root_cause_repairs: 2
+    shared_failure_parent_issue_threshold: 2
+  pass_condition:
+    target_case: pass
+    required_regression_bucket: pass
+    proof_of_separation: true
+    artifact_manifest_present: true
+  release_worker_may_rerun_e2e: false
+
+refactor_candidate_loop:
+  spec_path: docs/agents/refactor/refactor-candidate-loop.md
+  audit_template_path: docs/agents/refactor/refactor-candidate-audit-template.yaml
+  issue_unit: one_github_issue_per_refactor_candidate
+  timing:
+    starts_after: e2e_test_case_issue_loop
+    continues_to: documentation_and_tracker_update
+  execution_policy:
+    conditional: true
+    no_candidates: skip_with_refactor_candidate_audit_note
+    candidate_source: phase_refactor_audit
+  labels:
+    canonical_ready_label: ready-for-agent
+    supplemental: [refactor-candidate, blocked-by-spec, blocked-by-risk]
+  safety_refactor_only:
+    allowed: [rename, extract_function_or_class, remove_duplication, simplify_control_flow, improve_boundaries, reduce_coupling, improve_testability]
+    forbidden: [new_feature, ux_change, sql_semantics_change, public_contract_change, expected_output_change, acceptance_criteria_change, e2e_expected_outcome_change]
+  risk_gate:
+    low_risk: high_or_medium_value_may_be_ready_for_agent
+    medium_risk: requires_regression_bucket_and_rollback_plan
+    high_risk: ready_for_human_or_split_smaller
+  regression_policy:
+    mode: impact_based
+    uncertain_impact_fallback: rerun_all_materialized_e2e_test_case_regression_buckets
+  metadata_update_policy:
+    may_update_e2e_metadata_refs: true
+    may_change_expected_outcomes: false
 
 phases:
   - id: clarify_requirements
@@ -644,6 +727,7 @@ phases:
       - to-prd
     actions:
       - synthesize_problem_solution_user_stories_decisions_tests_out_of_scope
+      - draft_e2e_test_intents_from_acceptance_criteria
       - publish_prd_to_github_issue_with_needs_triage
       - store_local_copy_when_useful
     exit_gate: spec_gate
@@ -678,7 +762,7 @@ phases:
       on_no_ready_issue:
         - run_prd_phase_completeness_audit
         - if_prd_phase_incomplete_return_to_create_vertical_slice_issues
-        - if_prd_phase_complete_continue_to_phase_full_e2e_and_qa
+        - if_prd_phase_complete_continue_to_e2e_test_case_issue_loop
         - if_audit_cannot_confirm_coverage_or_publish_more_issues_stop_for_human_decision
       max_issue_gate_repair_attempts: 3
       on_worker_boot_failure:
@@ -808,7 +892,7 @@ phases:
       - git_gate
 
   - id: prd_phase_completeness_audit
-    goal: When no ready AFK issue remains, determine whether the current PRD phase is fully covered before phase-level QA or closure.
+    goal: When no ready AFK issue remains, determine whether the current PRD phase is fully covered before E2E test case issue materialization or closure.
     primary_skills:
       - to-issues
       - triage
@@ -817,54 +901,71 @@ phases:
       - compare_prd_acceptance_criteria_and_user_journeys_to_completed_open_and_missing_issue_slices
       - confirm_no_dependency_ready_issue_was_missed
       - if_prd_phase_incomplete_return_to_create_vertical_slice_issues
-      - if_prd_phase_complete_continue_to_phase_full_e2e_and_qa
+      - if_prd_phase_complete_continue_to_e2e_test_case_issue_loop
       - record_audit_summary_and_next_recommended_step
     exit_paths:
       prd_phase_incomplete:
         - create_vertical_slice_issues
         - issue_development_loop
       prd_phase_complete:
-        - phase_full_e2e_and_qa
+        - e2e_test_case_issue_loop
         - phase_refactor
         - documentation_and_tracker_update
       blocked:
         - stop_for_human_decision
 
-  - id: phase_full_e2e_and_qa
-    goal: After all issues in a PRD phase pass individually, verify the cross-issue journey in a fresh verifier worker session.
-    policy: phase_full_e2e
+  - id: e2e_test_case_issue_loop
+    goal: Materialize executable E2E test intents into GitHub issues and cycle each case through repair, fresh verification, and release readiness.
+    policy: test_case_issue_loop
+    reference: docs/agents/e2e/test-case-issue-loop.md
     primary_skills:
-      - playwright
+      - to-issues
+      - triage
       - e2e-testing
-      - browser-qa
-      - canary-watch
     actions:
-      - spawn_fresh_phase_verifier
-      - generate_or_seed_required_test_data
-      - start_required_local_services_and_test_db
-      - execute_full_user_journey_from_prd_acceptance_criteria
-      - operate_local_browser_for_real_interactions
-      - record_console_network_screenshots_traces_and_result_evidence
-      - rerun_relevant_regression_suites
-      - emit_phase_evidence_packet_with_artifact_manifest
-      - terminate_verifier_session
+      - convert_ready_e2e_intents_to_one_issue_per_test_case
+      - update_test_case_catalog_after_issue_creation
+      - run_serial_issue_worker_and_fresh_verifier_cycles
+      - update_failure_registry_from_verifier_evidence
+      - create_or_link_parent_infra_issue_when_signature_threshold_met
+      - require_target_case_and_regression_bucket_pass_before_release
     gates:
+      - traceability_gate
       - surface_qa_gate
       - diagnostics_and_build_gate
 
   - id: phase_refactor
-    goal: Improve architecture only after behavior is green and phase E2E passes.
+    goal: Improve architecture only after behavior is green and all materialized E2E test case issues pass.
+    policy: refactor_candidate_loop
+    reference: docs/agents/refactor/refactor-candidate-loop.md
+    issue_unit: one_github_issue_per_refactor_candidate
+    scope: safety_refactor_only
+    skip_when:
+      - no_refactor_candidates_identified_in_audit
+    skip_evidence_required: true
+    regression_strategy: impact_based
+    e2e_metadata_policy:
+      may_update: [test_case_catalog_refs, failure_registry_refs]
+      must_not_change: [expected_outcomes, assertions, acceptance_criteria]
     primary_skills:
       - improve-codebase-architecture
       - karpathy-guidelines
       - ai-slop-remover
     actions:
-      - identify_refactor_candidates_from_completed_phase
-      - apply_surgical_refactors_only
-      - rerun_before_after_behavior_tests
-      - run_review_gate_for_nontrivial_refactors
+      - run_refactor_candidate_audit_after_e2e_test_case_loop_passes
+      - write_refactor_candidate_audit_artifact
+      - if_no_candidates_skip_with_evidence_note
+      - score_candidates_by_value_risk_regression_coverage_and_rollback_boundary
+      - create_one_github_issue_per_approved_refactor_candidate
+      - label_refactor_issues_with_canonical_and_supplemental_labels
+      - route_each_refactor_issue_through_issue_worker_verifier_and_release_worker
+      - require_impact_based_regression_or_all_e2e_buckets_when_uncertain
+      - update_refactor_audit_and_e2e_metadata_refs_without_expected_behavior_changes
     gates:
+      - traceability_gate
+      - risk_gate
       - diagnostics_and_build_gate
+      - surface_qa_gate
       - review_gate
 
   - id: documentation_and_tracker_update
@@ -886,7 +987,8 @@ stop_conditions:
     - all_prd_ready_for_agent_issues_completed
     - prd_phase_completeness_audit_passed
     - all_issue_prs_have_passed_required_gates
-    - phase_full_e2e_passed
+    - all_materialized_e2e_test_case_issues_verified_or_released
+    - refactor_candidate_audit_recorded_and_refactor_issues_completed_or_skipped
     - docs_and_tracker_evidence_posted
   blocked:
     - missing_secret_or_external_access
