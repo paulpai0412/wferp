@@ -9,14 +9,14 @@ acceptance_criteria_evidence:
   - {ac_id: "AC4", status: worker_self_check_pass, evidence_ref: "skill_scripts/database_client.py + tests/skill_scripts/test_database_client.py", note: "Worker preserved DB_ENV=test and read-only SQL guardrails while keeping result-based assertions primary."}
   - {ac_id: "AC5", status: worker_self_check_pass, evidence_ref: "docs/agents/worker-results/issue-31.yaml + docs/agents/handoffs/issue-31.yaml", note: "Worker artifacts remain compact and index-only with no raw SQL logs or transcripts."}
 compact_verification_summary:
-  status: verifier_acceptance_pending
-  diagnostics_and_build_gate: "pass: worker-owned focused pytest checks passed for the deterministic ACTMK target case and regression bucket."
-  surface_qa_gate: "pending: fresh verifier must rerun the SQL target case in DB_ENV=test."
-  review_gate: "pending: fresh verifier review is still required for PR #35."
+  status: verifier_acceptance_pass
+  diagnostics_and_build_gate: "pass: fresh verifier reran DB-backed focused pytest bucket, py_compile, and targeted LSP checks."
+  surface_qa_gate: "pass: fresh verifier confirmed CLI governed-query DB_ENV=test happy path and DB_ENV_NOT_TEST guardrail."
+  review_gate: "pass: fresh verifier reviewed PR #35 diff/status; PR was MERGEABLE/CLEAN with no configured CI checks."
 evidence_packet_refs: {worker_result: "docs/agents/worker-results/issue-31.yaml", verifier_packet: "docs/agents/evidence/issue-31-pr-35.yaml", pr: "https://github.com/paulpai0412/wferp/pull/35", raw_evidence_policy: "Index-only refs in repo docs; raw logs stay outside main-agent context."}
 files_changed_summary:
   - {path: "test_db/init/01_create_wferp_test.sql + tests/skill_scripts/test_sql_correctness_e2e.py", summary: "Adds the deterministic ACTMK 2026/2025 fixture shape and the focused result-based E2E-002 target case."}
   - {path: "skill_scripts/database_client.py + tests/skill_scripts/test_database_client.py", summary: "Preserves read-only test DB access and covers the connection parsing used by the governed-query execution path."}
   - {path: "docs/agents/worker-results/issue-31.yaml + docs/agents/handoffs/issue-31.yaml", summary: "Stores the compact worker result and updates the handoff for fresh verifier pickup."}
-blockers_or_risks: ["Worker self-checks passed, but final SQL acceptance and review gate ownership remain with a fresh verifier for PR #35."]
-next_recommended_step: "Hand PR #35 to a fresh verifier that can rerun E2E-002 and its focused SQL regression bucket, then record the compact evidence packet."
+blockers_or_risks: ["Issue #31 released via PR #35; downstream E2E issues #32/#33 may now be considered serially."]
+next_recommended_step: "Continue the autonomous workflow with the next unblocked ready-for-agent E2E issue."

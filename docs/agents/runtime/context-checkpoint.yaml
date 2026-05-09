@@ -39,9 +39,9 @@ state:
     - "Issue #28 / E2E-001 passed verifier evidence, merged via PR #29 (5ba3269), and the issue is now closed."
     - "Issue #31 / E2E-002 passed verifier evidence and merged via PR #35 (3813948)."
   in_progress:
-    - "Post-merge release summaries for issue #31 are being recorded."
+    - "Issue #31 released via PR #35 and closed; repo-local evidence metadata has been backfilled on main."
   next:
-    - "Close issue #31 after compact release and hygiene summaries are posted."
+    - "Select the next unblocked ready-for-agent E2E issue in dependency order."
   blockers:
     - "Issues #32 and #33 depend on issue #31; issue #34 depends on issue #32."
 
@@ -57,11 +57,11 @@ compact_payload:
   authoritative_refs: ["docs/agents/issue-packets/issue-31.yaml", "docs/agents/handoffs/issue-31.yaml", "docs/agents/evidence/issue-31-pr-35.yaml", "docs/agents/autonomous-development-workflow.yaml"]
   state_snapshot:
     completed: ["Issue #31 verifier evidence passed and PR #35 merged at 3813948."]
-    in_progress: ["Issue #31 release summaries and closeout are being recorded."]
-    next: ["Close issue #31, then continue serially to downstream E2E issues."]
+    in_progress: ["Issue #31 released via PR #35 and closed; repo-local evidence metadata has been backfilled on main."]
+    next: ["Select the next unblocked ready-for-agent E2E issue in dependency order."]
     blockers: ["none for issue #31 release"]
   resume_rules: ["Resume from checkpoint and compact refs, not full chat history.", "Keep raw evidence as refs only; do not inline logs or traces."]
-  immediate_next_action: "Close issue #31 after compact release and hygiene summaries are posted."
+  immediate_next_action: "Select the next unblocked ready-for-agent E2E issue in dependency order."
 
 post_merge_workspace_hygiene:
   primary_workspace_branch_before: "agent/issue-31-deterministic-actmk-sql-correctness"
@@ -75,5 +75,5 @@ post_merge_workspace_hygiene:
   blocked_reason: "none"
 
 metadata:
-  updated_by: "release_worker"
-  updated_at: "2026-05-09T21:35:00+08:00"
+  updated_by: "Hephaestus"
+  updated_at: "2026-05-09T21:51:00+08:00"
