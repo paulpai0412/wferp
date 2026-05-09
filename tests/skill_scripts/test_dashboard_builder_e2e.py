@@ -1,8 +1,13 @@
+# pyright: reportUnknownVariableType=false
+
 import json
+
+from pytest import MonkeyPatch
 
 from skill_scripts.dashboard_canvas import DashboardCanvas, create_dashboard_chart_draft
 from skill_scripts.dashboard_publish import (
     DashboardDraft,
+    PublishedDashboard,
     approve_dashboard_draft,
     create_published_dashboard_link,
     preview_dashboard_draft,
@@ -35,12 +40,12 @@ def _bundle() -> dict[str, list[dict[str, str]]]:
 
 class _FakeDbConfig:
     def __init__(self, env: str = "test") -> None:
-        self.env = env
+        self.env: str = env
 
 
 class _FakeDbClient:
     def __init__(self) -> None:
-        self.config = _FakeDbConfig(env="test")
+        self.config: _FakeDbConfig = _FakeDbConfig(env="test")
         self.calls: list[str] = []
 
     def execute_readonly(self, sql: str) -> list[dict[str, object]]:
@@ -55,13 +60,13 @@ class _FakePublishedDashboardDataSource:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    def read_published_dashboard(self, published, *, reason: str) -> dict[str, object]:
+    def read_published_dashboard(self, published: PublishedDashboard, *, reason: str) -> dict[str, object]:
         _ = published
         self.calls.append(reason)
         return {"rows": [{"MK002": "2026", "MK006": 1000.0}], "reason": reason}
 
 
-def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatch) -> None:
+def test_cli_target_case_covers_prompt_to_published_dashboard_journey(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv(
         "LLM_MOCK_RESPONSE",
         json.dumps(
