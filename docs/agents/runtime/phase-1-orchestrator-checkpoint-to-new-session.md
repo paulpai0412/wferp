@@ -71,7 +71,7 @@ Do not trigger from branch changes, git hooks, PR webhooks, or generic session e
 3. Populate `context-checkpoint.yaml` for the selected issue.
 4. Derive `compact_payload` from the checkpoint using the rules below.
 5. Write `.opencode/runtime/new-session-request.json` with a checkpoint-only bootstrap prompt.
-6. Let the session-continuation plugin consume the request on `session.idle` and create a fresh child session.
+6. Let the session-continuation plugin consume the request on `session.idle` and create a fresh root session.
 7. Continue `per_issue_flow` in the fresh session in this order:
    - `create_or_switch_issue_branch`
    - `build_issue_packet`
@@ -160,7 +160,7 @@ When updating `context-checkpoint.yaml` and writing the continuation request, th
 
 - status: blocked
 - action: stop before worker spawn
-- report: plugin failed to create the child session or prompt it from checkpoint
+- report: plugin failed to create the root session or prompt it from checkpoint
 
 ## Non-goals
 

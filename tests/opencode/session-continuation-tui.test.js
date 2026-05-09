@@ -5,7 +5,7 @@ import { join } from "node:path"
 import SessionContinuationTuiPlugin from "../../.opencode/plugins/session-continuation-tui.ts"
 
 describe("SessionContinuationTuiPlugin", () => {
-  test("registers a command that opens the latest successful child session", async () => {
+  test("registers a command that opens the latest successful root session", async () => {
     const worktree = await mkdtemp(join(process.cwd(), ".tmp-session-continuation-tui-"))
     try {
       const runtimeDir = join(worktree, ".opencode/runtime")
@@ -14,7 +14,7 @@ describe("SessionContinuationTuiPlugin", () => {
         join(runtimeDir, "new-session-result.json"),
         JSON.stringify({
           status: "success",
-          childSessionID: "ses_child_tui",
+          rootSessionID: "ses_root_tui",
           title: "Continue issue #99",
         }),
         "utf-8",
@@ -49,12 +49,12 @@ describe("SessionContinuationTuiPlugin", () => {
       })
 
       expect(commands).toHaveLength(1)
-      expect(commands[0].value).toBe("open-last-child-session")
+      expect(commands[0].value).toBe("open-last-root-session")
       await commands[0].onSelect()
       expect(navigations).toEqual([
         {
           name: "session",
-          params: { sessionID: "ses_child_tui" },
+          params: { sessionID: "ses_root_tui" },
         },
       ])
       expect(toasts[0].variant).toBe("success")
@@ -63,7 +63,7 @@ describe("SessionContinuationTuiPlugin", () => {
     }
   })
 
-  test("shows an error toast when no successful child session is available", async () => {
+  test("shows an error toast when no successful root session is available", async () => {
     const worktree = await mkdtemp(join(process.cwd(), ".tmp-session-continuation-tui-"))
     try {
       const runtimeDir = join(worktree, ".opencode/runtime")

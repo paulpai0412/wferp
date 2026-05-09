@@ -15,8 +15,8 @@ type NewSessionRequest = {
 
 type NewSessionResult = {
   status: "success" | "error"
-  parentSessionID: string
-  childSessionID?: string
+  sourceSessionID: string
+  rootSessionID?: string
   title: string
   reason?: string
   error?: string
@@ -67,14 +67,12 @@ function resolveBootstrapAgent(request: NewSessionRequest): string {
 async function continueInNewSession(
   client: Parameters<Plugin>[0]["client"],
   directory: string,
-  parentSessionID: string,
   request: NewSessionRequest,
-): Promise<{ childSessionID: string; title: string }> {
+): Promise<{ rootSessionID: string; title: string }> {
   const title = request.title ?? "Continue workflow from checkpoint"
   const created = await client.session.create({
     query: { directory },
     body: {
-      parentID: parentSessionID,
       title,
     },
   })
@@ -82,13 +80,13 @@ async function continueInNewSession(
     throw new Error(`OpenCode session.create failed: ${String(created.error)}`)
   }
 
-  const childSessionID = created.data?.id
-  if (!childSessionID) {
-    throw new Error("OpenCode session.create did not return a child session id")
+  const rootSessionID = created.data?.id
+  if (!rootSessionID) {
+    throw new Error("OpenCode session.create did not return a root session id")
   }
 
   const promptResult = await client.session.promptAsync({
-    path: { id: childSessionID },
+    path: { id: rootSessionID },
     query: { directory },
     body: {
       agent: resolveBootstrapAgent(request),
@@ -104,7 +102,7 @@ async function continueInNewSession(
     throw new Error(`OpenCode session.promptAsync failed: ${String(promptResult.error)}`)
   }
 
-  return { childSessionID, title }
+  return { rootSessionID, title }
 }
 
 export const SessionContinuationPlugin: Plugin = async ({ client, directory, worktree }) => {
@@ -116,24 +114,24 @@ export const SessionContinuationPlugin: Plugin = async ({ client, directory, wor
       if (!newSessionRequest) return
 
       try {
-        const result = await continueInNewSession(client, directory, event.properties.sessionID, newSessionRequest)
+        const result = await continueInNewSession(client, directory, newSessionRequest)
         await writeNewSessionResult(worktree, {
           status: "success",
-          parentSessionID: event.properties.sessionID,
-          childSessionID: result.childSessionID,
+          sourceSessionID: event.properties.sessionID,
+          rootSessionID: result.rootSessionID,
           title: result.title,
           reason: newSessionRequest.reason,
           tuiResumeCommand: "/sessions",
-          cliOpenCommand: `opencode --session ${result.childSessionID}`,
+          cliOpenCommand: `opencode --session ${result.rootSessionID}`,
           recommendedAction:
-            `Open /sessions in OpenCode TUI and switch to ${result.childSessionID}, ` +
-            `or run opencode --session ${result.childSessionID}.`,
+            `Open /sessions in OpenCode TUI and switch to ${result.rootSessionID}, ` +
+            `or run opencode --session ${result.rootSessionID}.`,
           recordedAt: new Date().toISOString(),
         })
       } catch (error) {
         await writeNewSessionResult(worktree, {
           status: "error",
-          parentSessionID: event.properties.sessionID,
+          sourceSessionID: event.properties.sessionID,
           title: newSessionRequest.title ?? "Continue workflow from checkpoint",
           reason: newSessionRequest.reason,
           error: error instanceof Error ? error.message : String(error),
@@ -144,10 +142,10 @@ export const SessionContinuationPlugin: Plugin = async ({ client, directory, wor
     tool: {
       continue_in_new_session: tool({
         description:
-          "Create a fresh OpenCode child session and prompt it to resume this repo workflow from docs/agents/runtime/context-checkpoint.yaml.",
+          "Create a fresh OpenCode root session and prompt it to resume this repo workflow from docs/agents/runtime/context-checkpoint.yaml.",
         args: {
           reason: tool.schema.string().optional().describe("Why a fresh continuation session is being created."),
-          title: tool.schema.string().optional().describe("Optional title for the child session."),
+          title: tool.schema.string().optional().describe("Optional title for the root session."),
           agent: tool.schema.string().optional().describe("Optional OpenCode agent name for the bootstrap prompt."),
           prompt: tool.schema.string().optional().describe("Optional custom bootstrap prompt."),
         },
@@ -160,13 +158,13 @@ export const SessionContinuationPlugin: Plugin = async ({ client, directory, wor
             },
           })
 
-          const result = await continueInNewSession(client, context.directory, context.sessionID, args)
+          const result = await continueInNewSession(client, context.directory, args)
 
           return {
-            output: `Created continuation session ${result.childSessionID} from ${context.sessionID}.`,
+            output: `Created root continuation session ${result.rootSessionID} from ${context.sessionID}.`,
             metadata: {
-              parentSessionID: context.sessionID,
-              childSessionID: result.childSessionID,
+              sourceSessionID: context.sessionID,
+              rootSessionID: result.rootSessionID,
               title: result.title,
             },
           }
