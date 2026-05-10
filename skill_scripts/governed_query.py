@@ -135,7 +135,7 @@ def run_governed_query(
 
 def capture_live_llm_query_evidence(
     prompt: str,
-    bundle: dict[str, object],
+    bundle: dict[str, Any],
     options: RoutingOptions,
     db_client: object,
     sample_rows_limit: int = 5,
