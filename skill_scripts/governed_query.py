@@ -133,6 +133,59 @@ def run_governed_query(
     return GovernedQueryResult(evidence=evidence)
 
 
+def capture_live_llm_query_evidence(
+    prompt: str,
+    bundle: dict[str, Any],
+    options: RoutingOptions,
+    db_client: object,
+    sample_rows_limit: int = 5,
+) -> dict[str, object]:
+    try:
+        result = run_governed_query(
+            prompt=prompt,
+            bundle=bundle,
+            options=options,
+            db_client=db_client,
+            sample_rows_limit=sample_rows_limit,
+        )
+    except RuntimeError as exc:
+        code = str(exc)
+        return {
+            "prompt": prompt,
+            "status": "failed",
+            "failure_classification": _classify_live_llm_failure(code),
+            "blocking": _is_live_llm_product_failure(code),
+            "evidence_type": "live_llm_governed_query",
+            "error_code": code,
+        }
+    return {
+        "prompt": prompt,
+        "status": "passed",
+        "failure_classification": "none",
+        "blocking": False,
+        "evidence_type": "live_llm_governed_query",
+        "route": result.evidence.route,
+        "validation_status": result.evidence.validation_status,
+        "execution_status": result.evidence.execution_status,
+        "returned_columns": result.evidence.returned_columns,
+        "row_count": result.evidence.row_count,
+    }
+
+
+def _classify_live_llm_failure(code: str) -> str:
+    if code.startswith(("LLM_", "OPENCODE_")):
+        return "llm_availability"
+    if code in {"DB_CLIENT_REQUIRED", "DB_ENV_NOT_TEST"} or code.startswith("DB_"):
+        return "infra"
+    if code in {"MISSING_REQUIRED_COLUMN", "ROW_COUNT_TOO_LOW", "ROW_COUNT_TOO_HIGH", "AGGREGATE_MISMATCH", "MISSING_AGGREGATE_COLUMN"}:
+        return "test_data_seed"
+    return "product"
+
+
+def _is_live_llm_product_failure(code: str) -> bool:
+    return _classify_live_llm_failure(code) == "product"
+
+
 def approve_query_result(result: GovernedQueryResult) -> GovernedQueryResult:
     if result.approval_state != "ready_for_analyst_approval":
         raise RuntimeError("QUERY_RESULT_NOT_READY_FOR_APPROVAL")
