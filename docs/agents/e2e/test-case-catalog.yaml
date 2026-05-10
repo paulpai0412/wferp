@@ -34,13 +34,13 @@ entries:
     issue: {number: "33", url: "https://github.com/paulpai0412/wferp/issues/33", labels: [ready-for-agent, e2e-test-case]}
     surface: "library"
     status: "in-progress"
-    latest_pr: {number: "", url: ""}
+    latest_pr: {number: "37", url: "https://github.com/paulpai0412/wferp/pull/37"}
     latest_evidence_packet: ""
     latest_failure_signature: "none"
     prior_verified_refs: []
     latest_refactor_refs: []
     affected_by_refactor: false
-    next_recommended_step: "Spawn a fresh pr_verifier for the issue #33 PR to confirm E2E-003 target case plus the dashboard-builder regression bucket."
+    next_recommended_step: "Spawn a fresh pr_verifier for PR #37 to confirm E2E-003 target case plus the focused dashboard-builder regression bucket."
 
 entry_schema:
   id: "E2E-001"
