@@ -15,6 +15,8 @@
       --accent: #2f5f73;
       --accent-dark: #204657;
       --learned: #32724d;
+      --correct: #2f6f4e;
+      --incorrect: #9a3f32;
       --shadow: 0 24px 70px rgba(32, 44, 63, 0.16);
       font-family: Georgia, "Times New Roman", serif;
     }
@@ -167,6 +169,60 @@
       text-wrap: pretty;
     }
 
+    .quiz-panel {
+      margin-top: 32px;
+      padding-top: 28px;
+      border-top: 1px solid var(--line);
+    }
+
+    .quiz-question {
+      margin: 0 0 16px;
+      font-size: clamp(1.1rem, 2vw, 1.35rem);
+      font-weight: 700;
+      line-height: 1.45;
+      text-wrap: pretty;
+    }
+
+    .quiz-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .quiz-option {
+      min-height: 76px;
+      padding: 16px;
+      text-align: left;
+      line-height: 1.35;
+    }
+
+    .quiz-option.correct {
+      border-color: var(--correct);
+      background: rgba(47, 111, 78, 0.12);
+    }
+
+    .quiz-option.incorrect {
+      border-color: var(--incorrect);
+      background: rgba(154, 63, 50, 0.12);
+    }
+
+    .feedback {
+      min-height: 28px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .feedback.correct {
+      color: var(--correct);
+    }
+
+    .feedback.incorrect {
+      color: var(--incorrect);
+    }
+
     .controls {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -225,11 +281,15 @@
       .controls {
         grid-template-columns: 1fr;
       }
+
+      .quiz-options {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
-        transition-duration: 0.01ms !important;
+        transition-duration: 0.01ms;
       }
     }
   </style>
@@ -239,12 +299,13 @@
     <section class="hero">
       <div>
         <h1>Vocabulary Study</h1>
-        <p class="subtitle">Move through a compact English word deck, reveal each definition when you are ready, and mark words as learned to track your progress.</p>
+        <p class="subtitle">Move through a compact English word deck, study each definition and example, then choose the correct meaning to build your session score.</p>
       </div>
       <aside class="progress-panel" aria-live="polite">
         <span class="progress-label">Progress</span>
-        <span class="progress-count" id="wordProgress">Word 1 of 6</span>
+        <span class="progress-count" id="wordProgress">Word 1 of 8</span>
         <span class="progress-count" id="learnedProgress">0 learned</span>
+        <span class="progress-count" id="scoreProgress">Score 0 / 0</span>
       </aside>
     </section>
 
@@ -257,6 +318,13 @@
         <p class="eyebrow">Definition</p>
         <p class="definition hidden" id="definitionText">Definition hidden. Use the reveal button when you are ready.</p>
         <p class="example" id="exampleText">Example: After several failed attempts, the resilient team adjusted their plan and tried again.</p>
+      </div>
+      <div class="quiz-panel" aria-label="Vocabulary quiz mode">
+        <p class="eyebrow">Quiz Mode</p>
+        <p class="quiz-question" id="quizQuestion">Choose the correct meaning for resilient.</p>
+        <div class="quiz-options" id="quizOptions"></div>
+        <p class="feedback" id="feedbackText" aria-live="polite">Choose an answer to get immediate feedback.</p>
+        <p class="feedback" id="finalScore" aria-live="polite">Complete all 8 questions to see your final score.</p>
       </div>
     </section>
 
@@ -305,6 +373,18 @@
         definition: "Willing to give more help, time, or resources than expected.",
         example: "The generous mentor stayed late to review the learner's practice essay.",
         difficulty: "Beginner"
+      },
+      {
+        word: "adapt",
+        definition: "To change your behavior or ideas so they fit a new situation.",
+        example: "The class had to adapt when the lesson moved from the library to an online meeting.",
+        difficulty: "Beginner"
+      },
+      {
+        word: "insight",
+        definition: "A clear and deep understanding of a person, problem, or situation.",
+        example: "Her insight helped the team see why learners were skipping the review step.",
+        difficulty: "Intermediate"
       }
     ];
 
@@ -314,6 +394,11 @@
     const exampleText = document.getElementById("exampleText");
     const wordProgress = document.getElementById("wordProgress");
     const learnedProgress = document.getElementById("learnedProgress");
+    const scoreProgress = document.getElementById("scoreProgress");
+    const quizQuestion = document.getElementById("quizQuestion");
+    const quizOptions = document.getElementById("quizOptions");
+    const feedbackText = document.getElementById("feedbackText");
+    const finalScore = document.getElementById("finalScore");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
@@ -322,6 +407,91 @@
     let currentIndex = 0;
     let definitionVisible = false;
     const learnedWords = new Set();
+    const quizAnswers = new Map();
+
+    function getQuizChoices() {
+      const currentWord = vocabularyWords[currentIndex];
+      const otherDefinitions = vocabularyWords
+        .filter((word) => word.word !== currentWord.word)
+        .slice(0, 3)
+        .map((word) => word.definition);
+
+      return [currentWord.definition, ...otherDefinitions].sort();
+    }
+
+    function updateScore() {
+      const attempts = quizAnswers.size;
+      const correct = Array.from(quizAnswers.values()).filter(Boolean).length;
+
+      scoreProgress.textContent = `Score ${correct} / ${attempts}`;
+      finalScore.textContent = attempts === vocabularyWords.length
+        ? `Final score: ${correct} / ${vocabularyWords.length}`
+        : `Complete all ${vocabularyWords.length} questions to see your final score.`;
+    }
+
+    function chooseQuizAnswer(choice, button) {
+      const currentWord = vocabularyWords[currentIndex];
+      const isCorrect = choice === currentWord.definition;
+
+      if (!quizAnswers.has(currentWord.word)) {
+        quizAnswers.set(currentWord.word, isCorrect);
+      }
+
+      for (const option of quizOptions.children) {
+        option.disabled = true;
+        if (option.textContent === currentWord.definition) {
+          option.classList.add("correct");
+        }
+      }
+
+      if (!isCorrect) {
+        button.classList.add("incorrect");
+      }
+
+      feedbackText.textContent = isCorrect
+        ? "Correct. This is the meaning to remember."
+        : `Not quite. Correct meaning: ${currentWord.definition}`;
+      feedbackText.classList.remove("correct", "incorrect");
+      feedbackText.classList.add(isCorrect ? "correct" : "incorrect");
+      updateScore();
+    }
+
+    function renderQuiz() {
+      const currentWord = vocabularyWords[currentIndex];
+      const answeredCorrectly = quizAnswers.get(currentWord.word);
+
+      quizQuestion.textContent = `Choose the correct meaning for ${currentWord.word}.`;
+      quizOptions.innerHTML = "";
+
+      for (const choice of getQuizChoices()) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "quiz-option";
+        button.textContent = choice;
+        button.addEventListener("click", () => chooseQuizAnswer(choice, button));
+        quizOptions.appendChild(button);
+      }
+
+      feedbackText.classList.remove("correct", "incorrect");
+
+      if (answeredCorrectly === undefined) {
+        feedbackText.textContent = "Choose an answer to get immediate feedback.";
+      } else {
+        const currentDefinition = currentWord.definition;
+        for (const option of quizOptions.children) {
+          option.disabled = true;
+          if (option.textContent === currentDefinition) {
+            option.classList.add("correct");
+          }
+        }
+        feedbackText.textContent = answeredCorrectly
+          ? "Correct. This is the meaning to remember."
+          : `Not quite. Correct meaning: ${currentDefinition}`;
+        feedbackText.classList.add(answeredCorrectly ? "correct" : "incorrect");
+      }
+
+      updateScore();
+    }
 
     function renderCard() {
       const currentWord = vocabularyWords[currentIndex];
@@ -335,6 +505,7 @@
       learnedButton.textContent = learned ? "Learned" : "Mark as Learned";
       learnedButton.disabled = learned;
       toggleDefinitionButton.textContent = definitionVisible ? "Hide Definition" : "Reveal Definition";
+      renderQuiz();
 
       if (definitionVisible) {
         definitionText.textContent = currentWord.definition;
