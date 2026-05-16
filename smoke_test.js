@@ -39,6 +39,7 @@ const requiredSnippets = [
   "mistakeReviewList",
   "retryMistakesButton",
   "themeToggleButton",
+  "difficultyFilterControls",
   "vocabQuizTheme",
   "chooseQuizAnswer",
   "Question 1 of 12",
@@ -151,10 +152,13 @@ const mistakeReviewPanel = elements.get("mistakeReviewPanel");
 const mistakeReviewList = elements.get("mistakeReviewList");
 const retryMistakesButton = elements.get("retryMistakesButton");
 const themeToggleButton = elements.get("themeToggleButton");
+const difficultyText = elements.get("difficultyText");
+const difficultyFilterControls = elements.get("difficultyFilterControls");
 const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
+assert(difficultyFilterControls.children.length === 4, "difficulty filter should render all filter options");
 assert(scoreProgress.textContent === "Score 0 / 0", "initial score should show zero answered questions");
 assert(wordProgress.textContent === "Question 1 of 12", "progress should start from question 1 of 12");
 assert(streakProgress.textContent.includes("Streak"), "streak progress should be visible");
@@ -167,6 +171,21 @@ themeToggleButton.click();
 
 assert(themeToggleButton.textContent.toLowerCase().includes("light"), "theme toggle should switch to light mode action after enabling dark mode");
 assert(localStorage.getItem("vocabQuizTheme") === "dark", "dark mode selection should persist in localStorage");
+
+const beginnerFilterButton = difficultyFilterControls.children.find((button) => button.textContent === "Beginner");
+assert(beginnerFilterButton, "beginner filter button should exist");
+
+beginnerFilterButton.click();
+
+assert(difficultyText.textContent === "Beginner", "difficulty filter should update visible card to beginner words");
+elements.get("nextButton").click();
+assert(difficultyText.textContent === "Beginner", "navigating after filtering should keep only filtered difficulty words");
+
+const allFilterButton = difficultyFilterControls.children.find((button) => button.textContent === "All");
+assert(allFilterButton, "all filter button should exist");
+
+allFilterButton.click();
+assert(difficultyText.textContent === "Intermediate", "all filter should restore unfiltered card list behavior");
 
 const correctButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
 assert(correctButton, "first quiz should include the correct definition for resilient");

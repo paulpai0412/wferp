@@ -1,0 +1,67 @@
+schema_version: "1.0"
+kind: evidence_packet
+line_cap: 60
+raw_evidence_policy: index_only_no_raw_logs_or_traces_in_repo_docs
+
+subject:
+  issue_number: "11"
+  pr_number: "13"
+  branch: "agent/issue-11-feature-add-vocabulary-difficulty-filter-ui"
+  sha: "eb97458138c37bca73a9ace24b3eadf72d90faa4"
+  type: issue_pr
+  phase: ""
+
+verifier:
+  actor: "opencode-pr_verifier"
+  actor_role: "pr_verifier"
+  verifier_session_id: "ses_1d0484522ffeBawedULQHN9LOi"
+  started_at: "2026-05-16T07:44:16+00:00"
+  completed_at: "2026-05-16T07:44:16+00:00"
+
+proof_of_separation:
+  role: pr_verifier
+  verifier_is_distinct_from_worker: true
+  verifier_did_not_implement: true
+  verifier_read_worker_result_only: true
+  worker_session_distinct: true
+  worker_session_id: "local-session"
+  verifier_session_id: "ses_1d0484522ffeBawedULQHN9LOi"
+
+status: pass
+
+acceptance_criteria_matrix:
+  - {ac_id: "AC1", status: pass, evidence_ref: ".playwright-mcp/page-2026-05-16T07-42-27-581Z.yml", note: "Difficulty filter controls render with All, Beginner, Intermediate, and Advanced options."}
+  - {ac_id: "AC2", status: pass, evidence_ref: "playwright_run_code_unsafe:filter-sequence-check", note: "Selecting Beginner/Advanced restricts visible cards and Next navigation to the selected difficulty only."}
+  - {ac_id: "AC3", status: pass, evidence_ref: "playwright_run_code_unsafe:all-filter-behavior", note: "All filter restores mixed-difficulty list (same as no filter selected default behavior)."}
+
+gates:
+  diagnostics_and_build_gate: {status: pass, evidence_ref: "lsp_diagnostics:index.html+smoke_test.js; node smoke_test.js"}
+  surface_qa_gate: {status: pass, evidence_ref: ".playwright-mcp/pr13-desktop.png + .playwright-mcp/pr13-mobile.png"}
+  review_gate: {status: pass, evidence_ref: "gh pr view 13; gh pr diff 13"}
+  security_gate: {status: not_applicable, evidence_ref: "UI-only change; no auth/network/security surface modified"}
+
+role_boundary:
+  acceptance_qa_owner: pr_verifier
+  main_agent_ran_issue_qa: false
+  worker_self_checks_are_not_final_acceptance: true
+
+artifact_manifest:
+  bundle_ref: ".playwright-mcp/"
+  retention: "local workspace ephemeral"
+  items:
+    - {id: "pr13-diff-review", kind: summary, path: "gh pr diff 13", executor_role: pr_verifier, description: "Independent PR diff review for scope and AC mapping."}
+    - {id: "lsp-index-html", kind: other, path: "lsp_diagnostics index.html", executor_role: pr_verifier, description: "No diagnostics found in updated UI file."}
+    - {id: "lsp-smoke-test-js", kind: other, path: "lsp_diagnostics smoke_test.js", executor_role: pr_verifier, description: "No diagnostics found in updated smoke test file."}
+    - {id: "node-smoke-test", kind: log, path: "node smoke_test.js", executor_role: pr_verifier, description: "Smoke test passed including difficulty filter assertions."}
+    - {id: "playwright-console-log", kind: log, path: ".playwright-mcp/console-2026-05-16T07-42-27-343Z.log", executor_role: pr_verifier, description: "Console capture during QA (only favicon 404 observed)."}
+    - {id: "playwright-desktop-screenshot", kind: screenshot, path: ".playwright-mcp/pr13-desktop.png", executor_role: pr_verifier, description: "Desktop full-page screenshot showing filter controls in UI."}
+    - {id: "playwright-mobile-screenshot", kind: screenshot, path: ".playwright-mcp/pr13-mobile.png", executor_role: pr_verifier, description: "Mobile full-page screenshot showing responsive filter controls."}
+
+compact_summary:
+  outcome: "PR #13 satisfies all acceptance criteria for issue #11."
+  automated_checks: "lsp diagnostics pass for changed files; smoke_test.js passes."
+  manual_qa: "Playwright QA confirms filter controls exist, filtering updates cards, and All restores full list behavior."
+  risks_or_limitations:
+    - "Non-blocking favicon 404 in local static server console."
+
+next_recommended_step: "PR #13 is verified and mergeable. Release worker may merge after human review approval."

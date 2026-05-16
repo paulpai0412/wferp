@@ -1,0 +1,40 @@
+schema_version: "1.0"
+kind: issue_handoff
+line_cap: 35
+raw_evidence_policy: index_only_refs_no_raw_logs_or_transcripts
+
+issue_identity:
+  number: "11"
+  title: "Feature: Add vocabulary difficulty filter UI"
+  url: "https://github.com/paulpai0412/autodev-vocab-webapp-test-20260515/issues/11"
+  branch: "agent/issue-11-feature-add-vocabulary-difficulty-filter-ui"
+  pr_number: "13"
+  pr_url: "https://github.com/paulpai0412/autodev-vocab-webapp-test-20260515/pull/13"
+
+acceptance_criteria_evidence:
+  - {ac_id: "AC1", criterion: "Difficulty filter controls render with All, Beginner, Intermediate, Advanced options", status: "pass", evidence_ref: ".playwright-mcp/page-2026-05-16T07-42-27-581Z.yml"}
+  - {ac_id: "AC2", criterion: "Selecting Beginner/Advanced restricts visible cards and Next navigation to selected difficulty", status: "pass", evidence_ref: "playwright_run_code_unsafe:filter-sequence-check"}
+  - {ac_id: "AC3", criterion: "All filter restores mixed-difficulty list (same as no filter default)", status: "pass", evidence_ref: "playwright_run_code_unsafe:all-filter-behavior"}
+
+compact_verification_summary:
+  worker_gates: {tdd_gate: pass, implementation_self_check_gate: pass, git_gate: pass}
+  verifier_gates: {diagnostics_and_build_gate: pass, surface_qa_gate: pass, review_gate: pass, security_gate: not_applicable}
+  proof_of_separation: true
+  worker_session_id: "local-session"
+  verifier_session_id: "ses_1d0484522ffeBawedULQHN9LOi"
+
+evidence_packet_refs:
+  verifier_packet: "docs/agents/evidence/issue-11-pr-13.yaml"
+  worker_artifact_bundle: ""
+  raw_evidence_policy: "stored_outside_main_agent_context"
+
+files_changed_summary:
+  - {path: "index.html", summary: "Added difficulty filter controls and filtering logic for vocabulary card navigation and rendering."}
+  - {path: "smoke_test.js", summary: "Extended smoke tests to verify filter UI presence, filtered card behavior, and default all-words behavior."}
+
+blockers_or_risks:
+  - "Non-blocking favicon 404 in local static server console (pre-existing, unrelated to issue scope)."
+
+next_recommended_step: "PR #13 is verified and mergeable. Release worker may merge after human review approval."
+
+recorded_by: {actor: "main_orchestrator", recorded_at: "2026-05-16T15:50:57+08:00"}
