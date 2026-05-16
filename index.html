@@ -119,6 +119,18 @@
       font-weight: 700;
     }
 
+    .progress-status {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-wrap: pretty;
+    }
+
     .card {
       min-height: 430px;
       padding: clamp(24px, 5vw, 52px);
@@ -158,6 +170,15 @@
       border-color: var(--accent);
       background: var(--accent);
       color: #fffdf8;
+    }
+
+    .difficulty-filter-status {
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .review-summary-panel {
@@ -450,6 +471,7 @@
         <span class="progress-count" id="learnedProgress">0 learned</span>
         <span class="progress-count" id="scoreProgress">Score 0 / 0</span>
         <span class="progress-count" id="streakProgress">Streak 0 days</span>
+        <span class="progress-status" id="progressRestoreStatus">New progress session</span>
       </aside>
     </section>
 
@@ -471,7 +493,7 @@
     <section class="card" aria-live="polite">
       <div class="card-top">
         <h2 class="word" id="wordText">resilient</h2>
-        <span class="difficulty" id="difficultyText">Intermediate</span>
+        <span class="difficulty" id="difficultyText">Medium</span>
       </div>
       <div class="definition-wrap">
         <p class="eyebrow">Definition</p>
@@ -500,6 +522,7 @@
     <section class="difficulty-filters" aria-label="Difficulty filter controls">
       <p class="difficulty-filter-label">Difficulty Filter</p>
       <div id="difficultyFilterControls"></div>
+      <span class="difficulty-filter-status" id="activeDifficultyStatus">Active: All</span>
     </section>
 
     <nav class="controls" aria-label="Study controls">
@@ -513,55 +536,57 @@
   <script>
     const SESSION_LENGTH = 12;
     const THEME_STORAGE_KEY = "vocabQuizTheme";
+    const PROGRESS_STORAGE_KEY = "vocabPracticeProgress";
+    const DIFFICULTY_STORAGE_KEY = "vocabDifficultyFilter";
     const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
     const vocabularyWords = [
       {
         word: "resilient",
         definition: "Able to recover quickly after difficulty or change.",
         example: "After several failed attempts, the resilient team adjusted their plan and tried again.",
-        difficulty: "Intermediate"
+        difficulty: "Medium"
       },
       {
         word: "meticulous",
         definition: "Showing great attention to detail and accuracy.",
         example: "The editor was meticulous, checking every citation before publication.",
-        difficulty: "Advanced"
+        difficulty: "Hard"
       },
       {
         word: "curious",
         definition: "Eager to learn, ask questions, or discover new things.",
         example: "A curious student often learns more because every answer leads to another question.",
-        difficulty: "Beginner"
+        difficulty: "Easy"
       },
       {
         word: "concise",
         definition: "Giving a lot of information clearly in only a few words.",
         example: "Her concise summary helped everyone understand the plan in two minutes.",
-        difficulty: "Intermediate"
+        difficulty: "Medium"
       },
       {
         word: "ambiguous",
         definition: "Having more than one possible meaning or interpretation.",
         example: "The ambiguous instruction caused two teams to solve the problem differently.",
-        difficulty: "Advanced"
+        difficulty: "Hard"
       },
       {
         word: "generous",
         definition: "Willing to give more help, time, or resources than expected.",
         example: "The generous mentor stayed late to review the learner's practice essay.",
-        difficulty: "Beginner"
+        difficulty: "Easy"
       },
       {
         word: "adapt",
         definition: "To change your behavior or ideas so they fit a new situation.",
         example: "The class had to adapt when the lesson moved from the library to an online meeting.",
-        difficulty: "Beginner"
+        difficulty: "Easy"
       },
       {
         word: "insight",
         definition: "A clear and deep understanding of a person, problem, or situation.",
         example: "Her insight helped the team see why learners were skipping the review step.",
-        difficulty: "Intermediate"
+        difficulty: "Medium"
       }
     ];
 
@@ -594,6 +619,7 @@
     const learnedProgress = document.getElementById("learnedProgress");
     const scoreProgress = document.getElementById("scoreProgress");
     const streakProgress = document.getElementById("streakProgress");
+    const progressRestoreStatus = document.getElementById("progressRestoreStatus");
     const quizQuestion = document.getElementById("quizQuestion");
     const quizOptions = document.getElementById("quizOptions");
     const feedbackText = document.getElementById("feedbackText");
@@ -606,12 +632,13 @@
     const retryMistakesButton = document.getElementById("retryMistakesButton");
     const themeToggleButton = document.getElementById("themeToggleButton");
     const difficultyFilterControls = document.getElementById("difficultyFilterControls");
+    const activeDifficultyStatus = document.getElementById("activeDifficultyStatus");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
     const learnedButton = document.getElementById("learnedButton");
 
-    const difficultyFilters = ["All", "Beginner", "Intermediate", "Advanced"];
+    const difficultyFilters = ["All", "Easy", "Medium", "Hard"];
     let currentIndex = 0;
     let currentQuestion = 0;
     let sessionLength = SESSION_LENGTH;
@@ -633,6 +660,99 @@
       intervalDays: 0,
       nextReviewDay: null
     }]));
+
+    function toDifficultyLabel(value) {
+      if (value === "Beginner") {
+        return "Easy";
+      }
+      if (value === "Intermediate") {
+        return "Medium";
+      }
+      if (value === "Advanced") {
+        return "Hard";
+      }
+      return value;
+    }
+
+    function setProgressRestoreStatus(text) {
+      progressRestoreStatus.textContent = text;
+    }
+
+    function savePracticeProgress() {
+      const savedWordStats = {};
+
+      for (const [word, stats] of wordStats) {
+        savedWordStats[word] = {
+          attempts: stats.attempts,
+          correct: stats.correct,
+          incorrect: stats.incorrect,
+          lastResult: stats.lastResult
+        };
+      }
+
+      safeStorage.set(DIFFICULTY_STORAGE_KEY, currentDifficultyFilter);
+      safeStorage.set(PROGRESS_STORAGE_KEY, JSON.stringify({
+        learnedWords: Array.from(learnedWords),
+        wordStats: savedWordStats
+      }));
+
+      setProgressRestoreStatus("Progress saved on this device");
+    }
+
+    function restorePracticeProgress() {
+      const savedDifficultyRaw = safeStorage.get(DIFFICULTY_STORAGE_KEY);
+      const savedDifficulty = toDifficultyLabel(savedDifficultyRaw || "All");
+
+      if (difficultyFilters.includes(savedDifficulty)) {
+        currentDifficultyFilter = savedDifficulty;
+      }
+
+      const rawProgress = safeStorage.get(PROGRESS_STORAGE_KEY);
+      if (!rawProgress) {
+        setProgressRestoreStatus("No saved progress found");
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(rawProgress);
+        let restoredAnyProgress = false;
+
+        if (Array.isArray(parsed.learnedWords)) {
+          for (const word of parsed.learnedWords) {
+            if (wordStats.has(word)) {
+              learnedWords.add(word);
+              restoredAnyProgress = true;
+            }
+          }
+        }
+
+        if (parsed.wordStats && typeof parsed.wordStats === "object") {
+          for (const [word, savedStats] of Object.entries(parsed.wordStats)) {
+            if (!wordStats.has(word) || !savedStats || typeof savedStats !== "object") {
+              continue;
+            }
+
+            const nextStats = wordStats.get(word);
+            nextStats.attempts = Number.parseInt(String(savedStats.attempts || 0), 10) || 0;
+            nextStats.correct = Number.parseInt(String(savedStats.correct || 0), 10) || 0;
+            nextStats.incorrect = Number.parseInt(String(savedStats.incorrect || 0), 10) || 0;
+            nextStats.lastResult = typeof savedStats.lastResult === "boolean" ? savedStats.lastResult : null;
+
+            if (nextStats.attempts > 0 || nextStats.correct > 0 || nextStats.incorrect > 0) {
+              restoredAnyProgress = true;
+            }
+          }
+        }
+
+        setProgressRestoreStatus(
+          restoredAnyProgress
+            ? "Progress restored from previous session"
+            : "Saved session found with no scored progress"
+        );
+      } catch {
+        setProgressRestoreStatus("Saved progress data was unreadable");
+      }
+    }
 
     function getCurrentDayNumber() {
       return Math.floor(Date.now() / MILLISECONDS_PER_DAY);
@@ -724,6 +844,7 @@
 
       renderDifficultyFilters();
       resetSessionForFilter();
+      savePracticeProgress();
       renderCard();
     }
 
@@ -741,6 +862,8 @@
         button.addEventListener("click", () => applyDifficultyFilter(filter));
         difficultyFilterControls.appendChild(button);
       }
+
+      activeDifficultyStatus.textContent = `Active: ${currentDifficultyFilter}`;
     }
 
     function applyTheme() {
@@ -934,6 +1057,7 @@
 
         updateSpacedRepetitionState(currentWord, isCorrect);
         applyDailyStreak();
+        savePracticeProgress();
       }
 
       for (const option of quizOptions.children) {
@@ -1044,12 +1168,16 @@
     });
     learnedButton.addEventListener("click", () => {
       learnedWords.add(getCurrentWord().word);
+      savePracticeProgress();
       renderCard();
     });
 
     retryMistakesButton.disabled = true;
     mistakeReviewPanel.hidden = true;
+    restorePracticeProgress();
     renderDifficultyFilters();
+    filteredWordIndexes = getFilteredWordIndexes(currentDifficultyFilter);
+    resetSessionForFilter();
     applyTheme();
     updateStreakProgress();
     renderCard();
