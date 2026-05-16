@@ -261,6 +261,81 @@
       text-wrap: pretty;
     }
 
+    .random-quiz-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      border: 1px solid var(--accent);
+      border-radius: 18px;
+      background: rgba(47, 95, 115, 0.08);
+    }
+
+    .random-quiz-banner-text {
+      margin: 0;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .random-quiz-progress {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .random-quiz-stat {
+      text-align: center;
+    }
+
+    .random-quiz-stat-label {
+      display: block;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .random-quiz-stat-value {
+      display: block;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .random-quiz-summary {
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255, 253, 248, 0.82);
+      backdrop-filter: blur(8px);
+      text-align: center;
+    }
+
+    .random-quiz-summary h3 {
+      margin: 0 0 8px;
+      font-size: 1.5rem;
+    }
+
+    .random-quiz-summary p {
+      margin: 6px 0;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.95rem;
+    }
+
+    .random-quiz-summary .score-big {
+      display: block;
+      margin: 12px 0;
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.04em;
+    }
+
     .quiz-panel {
       margin-top: 32px;
       padding-top: 28px;
@@ -502,11 +577,48 @@
       <div id="difficultyFilterControls"></div>
     </section>
 
+    <section id="randomQuizBanner" hidden aria-label="Random quiz in progress" aria-live="polite">
+      <div class="random-quiz-banner">
+        <p class="random-quiz-banner-text" id="randomQuizBannerText">Random Quiz — Question 1 of 8</p>
+        <div class="random-quiz-progress">
+          <div class="random-quiz-stat">
+            <span class="random-quiz-stat-label">Correct</span>
+            <span class="random-quiz-stat-value" id="randomCorrectCount">0</span>
+          </div>
+          <div class="random-quiz-stat">
+            <span class="random-quiz-stat-label">Incorrect</span>
+            <span class="random-quiz-stat-value" id="randomIncorrectCount">0</span>
+          </div>
+          <div class="random-quiz-stat">
+            <span class="random-quiz-stat-label">Accuracy</span>
+            <span class="random-quiz-stat-value" id="randomAccuracy">—</span>
+          </div>
+        </div>
+        <button type="button" id="exitRandomQuizButton">Exit Quiz</button>
+      </div>
+    </section>
+
+    <section id="randomQuizSummary" hidden aria-label="Random quiz summary" aria-live="polite">
+      <div class="random-quiz-summary">
+        <h3>Quiz Complete!</h3>
+        <span class="score-big" id="summaryScoreBig">0 / 8</span>
+        <p id="summaryAccuracy">Accuracy: —</p>
+        <p id="summaryWeak"></p>
+        <button type="button" class="primary" id="restartRandomQuizButton" style="margin-top:14px">Play Again</button>
+        <button type="button" id="closeRandomQuizSummaryButton" style="margin-top:14px;margin-left:8px">Back to Study</button>
+      </div>
+    </section>
+
     <nav class="controls" aria-label="Study controls">
       <button type="button" id="previousButton">Previous</button>
       <button type="button" class="primary" id="toggleDefinitionButton">Reveal Definition</button>
       <button type="button" class="learned" id="learnedButton">Mark as Learned</button>
       <button type="button" id="nextButton">Next</button>
+    </nav>
+
+    <nav class="controls" aria-label="Random quiz controls" style="grid-template-columns: 1fr 1fr;">
+      <button type="button" class="primary" id="startRandomQuizButton">🎲 Start Random Quiz</button>
+      <button type="button" id="startFilteredRandomQuizButton">Random Quiz (Current Filter)</button>
     </nav>
   </main>
 
@@ -876,7 +988,184 @@
 
       if (sessionMistakes.length === 0) {
         mistakeReviewPanel.hidden = true;
-        retryMistakesButton.disabled = true;
+    const randomQuizBanner = document.getElementById("randomQuizBanner");
+    const randomQuizBannerText = document.getElementById("randomQuizBannerText");
+    const randomCorrectCount = document.getElementById("randomCorrectCount");
+    const randomIncorrectCount = document.getElementById("randomIncorrectCount");
+    const randomAccuracy = document.getElementById("randomAccuracy");
+    const exitRandomQuizButton = document.getElementById("exitRandomQuizButton");
+    const randomQuizSummary = document.getElementById("randomQuizSummary");
+    const summaryScoreBig = document.getElementById("summaryScoreBig");
+    const summaryAccuracy = document.getElementById("summaryAccuracy");
+    const summaryWeak = document.getElementById("summaryWeak");
+    const restartRandomQuizButton = document.getElementById("restartRandomQuizButton");
+    const closeRandomQuizSummaryButton = document.getElementById("closeRandomQuizSummaryButton");
+    const startRandomQuizButton = document.getElementById("startRandomQuizButton");
+    const startFilteredRandomQuizButton = document.getElementById("startFilteredRandomQuizButton");
+
+    // Random quiz state
+    let randomQuizActive = false;
+    let randomQuizWords = [];
+    let randomQuizIndex = 0;
+    let randomQuizCorrect = 0;
+    let randomQuizIncorrect = 0;
+    let randomQuizAnswered = false;
+
+    function shuffleArray(arr) {
+      const copy = arr.slice();
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startRandomQuiz(wordIndexes) {
+      randomQuizWords = shuffleArray(wordIndexes);
+      randomQuizIndex = 0;
+      randomQuizCorrect = 0;
+      randomQuizIncorrect = 0;
+      randomQuizAnswered = false;
+      randomQuizActive = true;
+      randomQuizBanner.hidden = false;
+      randomQuizSummary.hidden = true;
+      renderRandomQuizCard();
+    }
+
+    function getRandomQuizChoices(word) {
+      const others = vocabularyWords
+        .filter((w) => w.word !== word.word)
+        .slice();
+      const shuffled = shuffleArray(others).slice(0, 3);
+      return shuffleArray([word, ...shuffled]);
+    }
+
+    function updateRandomQuizStats() {
+      const total = randomQuizCorrect + randomQuizIncorrect;
+      randomCorrectCount.textContent = String(randomQuizCorrect);
+      randomIncorrectCount.textContent = String(randomQuizIncorrect);
+      randomAccuracy.textContent = total > 0 ? `${Math.round((randomQuizCorrect / total) * 100)}%` : "—";
+      randomQuizBannerText.textContent = `Random Quiz — Question ${randomQuizIndex + 1} of ${randomQuizWords.length}`;
+    }
+
+    function renderRandomQuizCard() {
+      const wordIndex = randomQuizWords[randomQuizIndex];
+      const word = vocabularyWords[wordIndex];
+      const choices = getRandomQuizChoices(word);
+
+      randomQuizAnswered = false;
+      wordText.textContent = word.word;
+      difficultyText.textContent = word.difficulty;
+      exampleText.textContent = `Example: ${word.example}`;
+      definitionText.textContent = "Definition hidden. Use the reveal button when you are ready.";
+      definitionText.classList.add("hidden");
+      definitionVisible = false;
+      toggleDefinitionButton.textContent = "Reveal Definition";
+
+      quizQuestion.textContent = `[Random Quiz] Choose the correct meaning for ${word.word}.`;
+      quizOptions.innerHTML = "";
+
+      for (const choice of choices) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "quiz-option";
+        button.textContent = choice.definition;
+        button.addEventListener("click", () => chooseRandomQuizAnswer(choice, button, word));
+        quizOptions.appendChild(button);
+      }
+
+      feedbackText.textContent = "Choose an answer to get immediate feedback.";
+      feedbackText.classList.remove("correct", "incorrect");
+      updateRandomQuizStats();
+      wordProgress.textContent = `Random Quiz: ${randomQuizIndex + 1} of ${randomQuizWords.length}`;
+    }
+
+    function chooseRandomQuizAnswer(choice, button, currentWord) {
+      if (randomQuizAnswered) return;
+      randomQuizAnswered = true;
+
+      const isCorrect = choice.word === currentWord.word;
+
+      for (const option of quizOptions.children) {
+        option.disabled = true;
+        if (option.textContent === currentWord.definition) {
+          option.classList.add("correct");
+        }
+      }
+      if (!isCorrect) {
+        button.classList.add("incorrect");
+        randomQuizIncorrect += 1;
+      } else {
+        randomQuizCorrect += 1;
+      }
+
+      feedbackText.textContent = isCorrect
+        ? "Correct. This is the meaning to remember."
+        : `Not quite. Correct meaning: ${currentWord.definition}`;
+      feedbackText.classList.remove("correct", "incorrect");
+      feedbackText.classList.add(isCorrect ? "correct" : "incorrect");
+
+      updateRandomQuizStats();
+
+      // Auto-advance after 1.4 s unless last question
+      const isLast = randomQuizIndex >= randomQuizWords.length - 1;
+      if (isLast) {
+        setTimeout(finishRandomQuiz, 1400);
+      } else {
+        setTimeout(() => {
+          randomQuizIndex += 1;
+          renderRandomQuizCard();
+        }, 1400);
+      }
+    }
+
+    function finishRandomQuiz() {
+      randomQuizActive = false;
+      randomQuizBanner.hidden = true;
+
+      const total = randomQuizWords.length;
+      const accuracy = total > 0 ? Math.round((randomQuizCorrect / total) * 100) : 0;
+
+      summaryScoreBig.textContent = `${randomQuizCorrect} / ${total}`;
+      summaryAccuracy.textContent = `Accuracy: ${accuracy}%`;
+
+      if (randomQuizIncorrect > 0) {
+        summaryWeak.textContent = `You missed ${randomQuizIncorrect} word${randomQuizIncorrect === 1 ? "" : "s"}. Try again to improve!`;
+      } else {
+        summaryWeak.textContent = "Perfect score! Every answer was correct.";
+      }
+
+      randomQuizSummary.hidden = false;
+      // Reset main card to normal view
+      renderCard();
+    }
+
+    function exitRandomQuiz() {
+      randomQuizActive = false;
+      randomQuizBanner.hidden = true;
+      randomQuizSummary.hidden = true;
+      renderCard();
+    }
+
+    startRandomQuizButton.addEventListener("click", () => {
+      startRandomQuiz(vocabularyWords.map((_, i) => i));
+    });
+
+    startFilteredRandomQuizButton.addEventListener("click", () => {
+      startRandomQuiz(filteredWordIndexes.length > 0 ? filteredWordIndexes : vocabularyWords.map((_, i) => i));
+    });
+
+    exitRandomQuizButton.addEventListener("click", exitRandomQuiz);
+
+    restartRandomQuizButton.addEventListener("click", () => {
+      randomQuizSummary.hidden = true;
+      startRandomQuiz(randomQuizWords); // same pool, reshuffled
+    });
+
+    closeRandomQuizSummaryButton.addEventListener("click", () => {
+      randomQuizSummary.hidden = true;
+      renderCard();
+    });
         return;
       }
 

@@ -1,0 +1,3 @@
+.opencode/runtime/*.sqlite3
+.opencode/runtime/*.sqlite3-shm
+.opencode/runtime/*.sqlite3-wal
