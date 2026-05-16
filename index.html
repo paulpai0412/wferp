@@ -127,6 +127,38 @@
       box-shadow: var(--shadow);
     }
 
+    .difficulty-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .difficulty-filter-label {
+      margin: 0;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .difficulty-filter-button {
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .difficulty-filter-button.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fffdf8;
+    }
+
     .card-top {
       display: flex;
       justify-content: space-between;
@@ -409,6 +441,11 @@
       </div>
     </section>
 
+    <section class="difficulty-filters" aria-label="Difficulty filter controls">
+      <p class="difficulty-filter-label">Difficulty Filter</p>
+      <div id="difficultyFilterControls"></div>
+    </section>
+
     <nav class="controls" aria-label="Study controls">
       <button type="button" id="previousButton">Previous</button>
       <button type="button" class="primary" id="toggleDefinitionButton">Reveal Definition</button>
@@ -508,18 +545,22 @@
     const mistakeReviewList = document.getElementById("mistakeReviewList");
     const retryMistakesButton = document.getElementById("retryMistakesButton");
     const themeToggleButton = document.getElementById("themeToggleButton");
+    const difficultyFilterControls = document.getElementById("difficultyFilterControls");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
     const learnedButton = document.getElementById("learnedButton");
 
+    const difficultyFilters = ["All", "Beginner", "Intermediate", "Advanced"];
     let currentIndex = 0;
     let currentQuestion = 0;
     let sessionLength = SESSION_LENGTH;
     let definitionVisible = false;
     let isDarkTheme = safeStorage.get(THEME_STORAGE_KEY) === "dark";
+    let currentDifficultyFilter = "All";
     const learnedWords = new Set();
     const questionAnswers = new Map();
+    let filteredWordIndexes = vocabularyWords.map((_, index) => index);
     let sessionWords = [0];
     let sessionMistakes = [];
     const wordStats = new Map(vocabularyWords.map((entry) => [entry.word, {
@@ -531,6 +572,60 @@
 
     function getCurrentWord() {
       return vocabularyWords[currentIndex];
+    }
+
+    function getFilteredWordIndexes(filter) {
+      if (filter === "All") {
+        return vocabularyWords.map((_, index) => index);
+      }
+
+      return vocabularyWords
+        .map((entry, index) => ({ entry, index }))
+        .filter((item) => item.entry.difficulty === filter)
+        .map((item) => item.index);
+    }
+
+    function resetSessionForFilter() {
+      if (filteredWordIndexes.length === 0) {
+        return;
+      }
+
+      sessionWords = [filteredWordIndexes[0]];
+      sessionLength = SESSION_LENGTH;
+      sessionMistakes = [];
+      questionAnswers.clear();
+      currentQuestion = 0;
+      currentIndex = sessionWords[0];
+      definitionVisible = false;
+    }
+
+    function applyDifficultyFilter(filter) {
+      currentDifficultyFilter = filter;
+      filteredWordIndexes = getFilteredWordIndexes(filter);
+      if (filteredWordIndexes.length === 0) {
+        currentDifficultyFilter = "All";
+        filteredWordIndexes = getFilteredWordIndexes("All");
+      }
+
+      renderDifficultyFilters();
+      resetSessionForFilter();
+      renderCard();
+    }
+
+    function renderDifficultyFilters() {
+      difficultyFilterControls.innerHTML = "";
+
+      for (const filter of difficultyFilters) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "difficulty-filter-button";
+        if (filter === currentDifficultyFilter) {
+          button.classList.add("active");
+        }
+        button.textContent = filter;
+        button.addEventListener("click", () => applyDifficultyFilter(filter));
+        difficultyFilterControls.appendChild(button);
+      }
     }
 
     function applyTheme() {
@@ -605,11 +700,11 @@
     }
 
     function selectNextWordIndex() {
-      const ranked = vocabularyWords
-        .map((entry, index) => ({
+      const ranked = filteredWordIndexes
+        .map((index) => ({
           index,
-          score: getWordPriority(entry, index),
-          attempts: wordStats.get(entry.word).attempts
+          score: getWordPriority(vocabularyWords[index], index),
+          attempts: wordStats.get(vocabularyWords[index].word).attempts
         }))
         .sort((left, right) => {
           if (right.score !== left.score) {
@@ -620,6 +715,10 @@
           }
           return left.index - right.index;
         });
+
+      if (ranked.length === 0) {
+        return currentIndex;
+      }
 
       return ranked[0].index;
     }
@@ -832,6 +931,7 @@
 
     retryMistakesButton.disabled = true;
     mistakeReviewPanel.hidden = true;
+    renderDifficultyFilters();
     applyTheme();
     updateStreakProgress();
     renderCard();
