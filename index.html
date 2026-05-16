@@ -11,6 +11,7 @@
       --muted: #647084;
       --paper: #f6f2ea;
       --card: #fffdf8;
+      --card-surface: linear-gradient(145deg, rgba(255, 253, 248, 0.98), rgba(250, 244, 234, 0.94));
       --line: #ddd3c4;
       --accent: #2f5f73;
       --accent-dark: #204657;
@@ -19,6 +20,22 @@
       --incorrect: #9a3f32;
       --shadow: 0 24px 70px rgba(32, 44, 63, 0.16);
       font-family: Georgia, "Times New Roman", serif;
+    }
+
+    body.dark-theme {
+      color-scheme: dark;
+      --ink: #edf1f8;
+      --muted: #acb7cc;
+      --paper: #111724;
+      --card: #1b2435;
+      --card-surface: linear-gradient(150deg, rgba(35, 47, 68, 0.98), rgba(24, 32, 48, 0.96));
+      --line: #33425d;
+      --accent: #6da1c4;
+      --accent-dark: #9dc2db;
+      --learned: #4f9d72;
+      --correct: #7bc596;
+      --incorrect: #d08074;
+      --shadow: 0 20px 60px rgba(5, 9, 17, 0.55);
     }
 
     * {
@@ -35,6 +52,12 @@
         radial-gradient(circle at 15% 10%, rgba(47, 95, 115, 0.14), transparent 28rem),
         linear-gradient(135deg, #fbf7ef 0%, var(--paper) 48%, #efe6d7 100%);
       color: var(--ink);
+    }
+
+    body.dark-theme {
+      background:
+        radial-gradient(circle at 12% 14%, rgba(109, 161, 196, 0.2), transparent 30rem),
+        linear-gradient(135deg, #0d1320 0%, var(--paper) 58%, #1a2234 100%);
     }
 
     main {
@@ -98,9 +121,9 @@
     .card {
       min-height: 430px;
       padding: clamp(24px, 5vw, 52px);
-      border: 1px solid rgba(221, 211, 196, 0.86);
+      border: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
       border-radius: 34px;
-      background: linear-gradient(145deg, rgba(255, 253, 248, 0.98), rgba(250, 244, 234, 0.94));
+      background: var(--card-surface);
       box-shadow: var(--shadow);
     }
 
@@ -163,7 +186,7 @@
 
     .example {
       margin: 28px 0 0;
-      color: #3f4b5c;
+      color: color-mix(in srgb, var(--ink) 74%, var(--muted));
       font-size: clamp(1rem, 2vw, 1.2rem);
       line-height: 1.65;
       text-wrap: pretty;
@@ -173,6 +196,27 @@
       margin-top: 32px;
       padding-top: 28px;
       border-top: 1px solid var(--line);
+    }
+
+    .quiz-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .quiz-header .eyebrow {
+      margin: 0;
+    }
+
+    .theme-toggle {
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     .quiz-question {
@@ -236,7 +280,7 @@
       padding-left: 18px;
       display: grid;
       gap: 8px;
-      color: #314055;
+      color: color-mix(in srgb, var(--ink) 82%, var(--muted));
     }
 
     .mistake-actions {
@@ -307,6 +351,10 @@
       .quiz-options {
         grid-template-columns: 1fr;
       }
+
+      .quiz-header {
+        align-items: start;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -343,7 +391,10 @@
         <p class="example" id="exampleText">Example: After several failed attempts, the resilient team adjusted their plan and tried again.</p>
       </div>
       <div class="quiz-panel" aria-label="Vocabulary quiz mode">
-        <p class="eyebrow">Quiz Mode</p>
+        <div class="quiz-header">
+          <p class="eyebrow">Quiz Mode</p>
+          <button type="button" class="theme-toggle" id="themeToggleButton" aria-label="Toggle quiz theme">Dark Mode</button>
+        </div>
         <p class="quiz-question" id="quizQuestion">Choose the correct meaning for resilient.</p>
         <div class="quiz-options" id="quizOptions"></div>
         <p class="feedback" id="feedbackText" aria-live="polite">Choose an answer to get immediate feedback.</p>
@@ -368,6 +419,7 @@
 
   <script>
     const SESSION_LENGTH = 12;
+    const THEME_STORAGE_KEY = "vocabQuizTheme";
     const vocabularyWords = [
       {
         word: "resilient",
@@ -455,6 +507,7 @@
     const mistakeReviewPanel = document.getElementById("mistakeReviewPanel");
     const mistakeReviewList = document.getElementById("mistakeReviewList");
     const retryMistakesButton = document.getElementById("retryMistakesButton");
+    const themeToggleButton = document.getElementById("themeToggleButton");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
@@ -464,6 +517,7 @@
     let currentQuestion = 0;
     let sessionLength = SESSION_LENGTH;
     let definitionVisible = false;
+    let isDarkTheme = safeStorage.get(THEME_STORAGE_KEY) === "dark";
     const learnedWords = new Set();
     const questionAnswers = new Map();
     let sessionWords = [0];
@@ -477,6 +531,17 @@
 
     function getCurrentWord() {
       return vocabularyWords[currentIndex];
+    }
+
+    function applyTheme() {
+      if (isDarkTheme) {
+        document.body.classList.add("dark-theme");
+      } else {
+        document.body.classList.remove("dark-theme");
+      }
+
+      themeToggleButton.textContent = isDarkTheme ? "Light Mode" : "Dark Mode";
+      safeStorage.set(THEME_STORAGE_KEY, isDarkTheme ? "dark" : "light");
     }
 
     function getQuizChoices() {
@@ -756,6 +821,10 @@
       renderCard();
     });
     retryMistakesButton.addEventListener("click", startRetryRound);
+    themeToggleButton.addEventListener("click", () => {
+      isDarkTheme = !isDarkTheme;
+      applyTheme();
+    });
     learnedButton.addEventListener("click", () => {
       learnedWords.add(getCurrentWord().word);
       renderCard();
@@ -763,6 +832,7 @@
 
     retryMistakesButton.disabled = true;
     mistakeReviewPanel.hidden = true;
+    applyTheme();
     updateStreakProgress();
     renderCard();
   </script>

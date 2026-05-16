@@ -38,6 +38,8 @@ const requiredSnippets = [
   "mistakeReviewPanel",
   "mistakeReviewList",
   "retryMistakesButton",
+  "themeToggleButton",
+  "vocabQuizTheme",
   "chooseQuizAnswer",
   "Question 1 of 12",
   "Streak 0 days",
@@ -117,6 +119,15 @@ function makeElement(id) {
 }
 
 const elements = new Map();
+const storage = new Map();
+const localStorage = {
+  getItem(key) {
+    return storage.has(key) ? storage.get(key) : null;
+  },
+  setItem(key, value) {
+    storage.set(key, String(value));
+  }
+};
 const document = {
   getElementById(id) {
     if (!elements.has(id)) {
@@ -126,10 +137,11 @@ const document = {
   },
   createElement(tagName) {
     return makeElement(tagName);
-  }
+  },
+  body: makeElement("body")
 };
 
-vm.runInNewContext(scriptMatch[1], { document, Set });
+vm.runInNewContext(scriptMatch[1], { document, Set, localStorage });
 
 const quizOptions = elements.get("quizOptions");
 const feedbackText = elements.get("feedbackText");
@@ -138,6 +150,7 @@ const finalScore = elements.get("finalScore");
 const mistakeReviewPanel = elements.get("mistakeReviewPanel");
 const mistakeReviewList = elements.get("mistakeReviewList");
 const retryMistakesButton = elements.get("retryMistakesButton");
+const themeToggleButton = elements.get("themeToggleButton");
 const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
 
@@ -146,6 +159,14 @@ assert(scoreProgress.textContent === "Score 0 / 0", "initial score should show z
 assert(wordProgress.textContent === "Question 1 of 12", "progress should start from question 1 of 12");
 assert(streakProgress.textContent.includes("Streak"), "streak progress should be visible");
 assert(finalScore.textContent.includes("Complete all 12 questions"), "final score should show remaining session work");
+assert(themeToggleButton, "theme toggle button should exist for quiz interface");
+assert(themeToggleButton.textContent.toLowerCase().includes("dark"), "theme toggle should advertise dark mode action");
+assert(localStorage.getItem("vocabQuizTheme") === "light", "default theme should persist as light");
+
+themeToggleButton.click();
+
+assert(themeToggleButton.textContent.toLowerCase().includes("light"), "theme toggle should switch to light mode action after enabling dark mode");
+assert(localStorage.getItem("vocabQuizTheme") === "dark", "dark mode selection should persist in localStorage");
 
 const correctButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
 assert(correctButton, "first quiz should include the correct definition for resilient");
