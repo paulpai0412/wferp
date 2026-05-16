@@ -303,9 +303,10 @@
       </div>
       <aside class="progress-panel" aria-live="polite">
         <span class="progress-label">Progress</span>
-        <span class="progress-count" id="wordProgress">Word 1 of 8</span>
+        <span class="progress-count" id="wordProgress">Question 1 of 12</span>
         <span class="progress-count" id="learnedProgress">0 learned</span>
         <span class="progress-count" id="scoreProgress">Score 0 / 0</span>
+        <span class="progress-count" id="streakProgress">Streak 0 days</span>
       </aside>
     </section>
 
@@ -324,7 +325,7 @@
         <p class="quiz-question" id="quizQuestion">Choose the correct meaning for resilient.</p>
         <div class="quiz-options" id="quizOptions"></div>
         <p class="feedback" id="feedbackText" aria-live="polite">Choose an answer to get immediate feedback.</p>
-        <p class="feedback" id="finalScore" aria-live="polite">Complete all 8 questions to see your final score.</p>
+        <p class="feedback" id="finalScore" aria-live="polite">Complete all 12 questions to see your session summary.</p>
       </div>
     </section>
 
@@ -337,6 +338,7 @@
   </main>
 
   <script>
+    const SESSION_LENGTH = 12;
     const vocabularyWords = [
       {
         word: "resilient",
@@ -388,6 +390,27 @@
       }
     ];
 
+    const safeStorage = {
+      get(key) {
+        if (!globalThis.localStorage || typeof globalThis.localStorage.getItem !== "function") {
+          return null;
+        }
+        return globalThis.localStorage.getItem(key);
+      },
+      set(key, value) {
+        if (!globalThis.localStorage || typeof globalThis.localStorage.setItem !== "function") {
+          return;
+        }
+        globalThis.localStorage.setItem(key, value);
+      }
+    };
+
+    const streakState = {
+      lastDate: safeStorage.get("vocabDailyStreakLastDate"),
+      days: Number.parseInt(safeStorage.get("vocabDailyStreakDays") || "0", 10) || 0,
+      appliedToday: false
+    };
+
     const wordText = document.getElementById("wordText");
     const difficultyText = document.getElementById("difficultyText");
     const definitionText = document.getElementById("definitionText");
@@ -395,6 +418,7 @@
     const wordProgress = document.getElementById("wordProgress");
     const learnedProgress = document.getElementById("learnedProgress");
     const scoreProgress = document.getElementById("scoreProgress");
+    const streakProgress = document.getElementById("streakProgress");
     const quizQuestion = document.getElementById("quizQuestion");
     const quizOptions = document.getElementById("quizOptions");
     const feedbackText = document.getElementById("feedbackText");
@@ -405,12 +429,24 @@
     const learnedButton = document.getElementById("learnedButton");
 
     let currentIndex = 0;
+    let currentQuestion = 0;
     let definitionVisible = false;
     const learnedWords = new Set();
-    const quizAnswers = new Map();
+    const questionAnswers = new Map();
+    const sessionWords = [0];
+    const wordStats = new Map(vocabularyWords.map((entry) => [entry.word, {
+      attempts: 0,
+      correct: 0,
+      incorrect: 0,
+      lastResult: null
+    }]));
+
+    function getCurrentWord() {
+      return vocabularyWords[currentIndex];
+    }
 
     function getQuizChoices() {
-      const currentWord = vocabularyWords[currentIndex];
+      const currentWord = getCurrentWord();
       const otherDefinitions = vocabularyWords
         .filter((word) => word.word !== currentWord.word)
         .slice(0, 3)
@@ -419,22 +455,124 @@
       return [currentWord.definition, ...otherDefinitions].sort();
     }
 
+    function updateStreakProgress() {
+      streakProgress.textContent = `Streak ${streakState.days} day${streakState.days === 1 ? "" : "s"}`;
+    }
+
+    function applyDailyStreak() {
+      if (streakState.appliedToday) {
+        return;
+      }
+
+      const todayStamp = new Date().toISOString().slice(0, 10);
+      if (streakState.lastDate === todayStamp) {
+        streakState.appliedToday = true;
+        updateStreakProgress();
+        return;
+      }
+
+      const yesterdayStamp = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      if (streakState.lastDate === yesterdayStamp) {
+        streakState.days += 1;
+      } else {
+        streakState.days = 1;
+      }
+
+      streakState.lastDate = todayStamp;
+      streakState.appliedToday = true;
+      safeStorage.set("vocabDailyStreakDays", String(streakState.days));
+      safeStorage.set("vocabDailyStreakLastDate", streakState.lastDate);
+      updateStreakProgress();
+    }
+
+    function getWordPriority(word, index) {
+      const stats = wordStats.get(word.word);
+      let score = stats.incorrect * 4 - stats.correct * 2;
+
+      if (stats.lastResult === false) {
+        score += 6;
+      }
+      if (stats.lastResult === true) {
+        score -= 1;
+      }
+      if (stats.attempts === 0) {
+        score += 2;
+      }
+      if (index === currentIndex) {
+        score -= 3;
+      }
+
+      return score;
+    }
+
+    function selectNextWordIndex() {
+      const ranked = vocabularyWords
+        .map((entry, index) => ({
+          index,
+          score: getWordPriority(entry, index),
+          attempts: wordStats.get(entry.word).attempts
+        }))
+        .sort((left, right) => {
+          if (right.score !== left.score) {
+            return right.score - left.score;
+          }
+          if (left.attempts !== right.attempts) {
+            return left.attempts - right.attempts;
+          }
+          return left.index - right.index;
+        });
+
+      return ranked[0].index;
+    }
+
+    function ensureQuestionWord(questionIndex) {
+      if (questionIndex < sessionWords.length) {
+        return;
+      }
+
+      sessionWords.push(selectNextWordIndex());
+    }
+
     function updateScore() {
-      const attempts = quizAnswers.size;
-      const correct = Array.from(quizAnswers.values()).filter(Boolean).length;
+      const attempts = questionAnswers.size;
+      const correct = Array.from(questionAnswers.values()).filter(Boolean).length;
 
       scoreProgress.textContent = `Score ${correct} / ${attempts}`;
-      finalScore.textContent = attempts === vocabularyWords.length
-        ? `Final score: ${correct} / ${vocabularyWords.length}`
-        : `Complete all ${vocabularyWords.length} questions to see your final score.`;
+
+      if (attempts === SESSION_LENGTH) {
+        const accuracy = Math.round((correct / SESSION_LENGTH) * 100);
+        const weakWords = vocabularyWords
+          .map((entry) => ({ word: entry.word, incorrect: wordStats.get(entry.word).incorrect }))
+          .filter((entry) => entry.incorrect > 0)
+          .sort((left, right) => right.incorrect - left.incorrect)
+          .slice(0, 3)
+          .map((entry) => entry.word)
+          .join(", ");
+        const weakWordsText = weakWords || "none";
+
+        finalScore.textContent = `Session summary: ${correct}/${SESSION_LENGTH} correct (${accuracy}%). Weak words: ${weakWordsText}. Daily streak: ${streakState.days}.`;
+      } else {
+        finalScore.textContent = `Complete all ${SESSION_LENGTH} questions to see your session summary.`;
+      }
     }
 
     function chooseQuizAnswer(choice, button) {
-      const currentWord = vocabularyWords[currentIndex];
+      const currentWord = getCurrentWord();
       const isCorrect = choice === currentWord.definition;
 
-      if (!quizAnswers.has(currentWord.word)) {
-        quizAnswers.set(currentWord.word, isCorrect);
+      if (!questionAnswers.has(currentQuestion)) {
+        questionAnswers.set(currentQuestion, isCorrect);
+
+        const stats = wordStats.get(currentWord.word);
+        stats.attempts += 1;
+        stats.lastResult = isCorrect;
+        if (isCorrect) {
+          stats.correct += 1;
+        } else {
+          stats.incorrect += 1;
+        }
+
+        applyDailyStreak();
       }
 
       for (const option of quizOptions.children) {
@@ -457,8 +595,8 @@
     }
 
     function renderQuiz() {
-      const currentWord = vocabularyWords[currentIndex];
-      const answeredCorrectly = quizAnswers.get(currentWord.word);
+      const currentWord = getCurrentWord();
+      const answeredCorrectly = questionAnswers.get(currentQuestion);
 
       quizQuestion.textContent = `Choose the correct meaning for ${currentWord.word}.`;
       quizOptions.innerHTML = "";
@@ -494,13 +632,13 @@
     }
 
     function renderCard() {
-      const currentWord = vocabularyWords[currentIndex];
+      const currentWord = getCurrentWord();
       const learned = learnedWords.has(currentWord.word);
 
       wordText.textContent = currentWord.word;
       difficultyText.textContent = currentWord.difficulty;
       exampleText.textContent = `Example: ${currentWord.example}`;
-      wordProgress.textContent = `Word ${currentIndex + 1} of ${vocabularyWords.length}`;
+      wordProgress.textContent = `Question ${currentQuestion + 1} of ${SESSION_LENGTH}`;
       learnedProgress.textContent = `${learnedWords.size} learned`;
       learnedButton.textContent = learned ? "Learned" : "Mark as Learned";
       learnedButton.disabled = learned;
@@ -517,7 +655,15 @@
     }
 
     function moveToWord(offset) {
-      currentIndex = (currentIndex + offset + vocabularyWords.length) % vocabularyWords.length;
+      const nextQuestion = currentQuestion + offset;
+
+      if (nextQuestion < 0 || nextQuestion >= SESSION_LENGTH) {
+        return;
+      }
+
+      ensureQuestionWord(nextQuestion);
+      currentQuestion = nextQuestion;
+      currentIndex = sessionWords[currentQuestion];
       definitionVisible = false;
       renderCard();
     }
@@ -529,10 +675,11 @@
       renderCard();
     });
     learnedButton.addEventListener("click", () => {
-      learnedWords.add(vocabularyWords[currentIndex].word);
+      learnedWords.add(getCurrentWord().word);
       renderCard();
     });
 
+    updateStreakProgress();
     renderCard();
   </script>
 </body>

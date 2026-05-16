@@ -25,6 +25,9 @@ assert(html.trim().length > 0, "index.html is empty");
 
 const requiredSnippets = [
   "vocabularyWords",
+  "SESSION_LENGTH",
+  "wordStats",
+  "streakProgress",
   "definition",
   "example",
   "difficulty",
@@ -33,7 +36,8 @@ const requiredSnippets = [
   "scoreProgress",
   "finalScore",
   "chooseQuizAnswer",
-  "Word 1 of 8",
+  "Question 1 of 12",
+  "Streak 0 days",
   "Score 0 / 0"
 ];
 
@@ -127,10 +131,14 @@ const quizOptions = elements.get("quizOptions");
 const feedbackText = elements.get("feedbackText");
 const scoreProgress = elements.get("scoreProgress");
 const finalScore = elements.get("finalScore");
+const wordProgress = elements.get("wordProgress");
+const streakProgress = elements.get("streakProgress");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
 assert(scoreProgress.textContent === "Score 0 / 0", "initial score should show zero answered questions");
-assert(finalScore.textContent.includes("Complete all 8 questions"), "final score should show remaining session work");
+assert(wordProgress.textContent === "Question 1 of 12", "progress should start from question 1 of 12");
+assert(streakProgress.textContent.includes("Streak"), "streak progress should be visible");
+assert(finalScore.textContent.includes("Complete all 12 questions"), "final score should show remaining session work");
 
 const correctButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
 assert(correctButton, "first quiz should include the correct definition for resilient");
@@ -148,5 +156,15 @@ wrongButton.click();
 
 assert(feedbackText.textContent.includes("Not quite"), "clicking an incorrect answer should show immediate corrective feedback");
 assert(scoreProgress.textContent === "Score 1 / 2", "score should track correct answers against attempts");
+
+for (let index = 0; index < 10; index += 1) {
+  elements.get("nextButton").click();
+  const options = quizOptions.children;
+  options[0].click();
+}
+
+assert(finalScore.textContent.includes("Session summary:"), "after 12 attempts the session summary should appear");
+assert(finalScore.textContent.includes("Weak words:"), "session summary should include weak words");
+assert(finalScore.textContent.includes("Daily streak:"), "session summary should include daily streak");
 
 console.log("Smoke test passed: vocabulary practice UI and quiz interactions are exposed.");
