@@ -223,6 +223,28 @@
       color: var(--incorrect);
     }
 
+    .mistake-review {
+      margin-top: 20px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 248, 0.75);
+    }
+
+    .mistake-list {
+      margin: 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 8px;
+      color: #314055;
+    }
+
+    .mistake-actions {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-start;
+    }
+
     .controls {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -326,6 +348,13 @@
         <div class="quiz-options" id="quizOptions"></div>
         <p class="feedback" id="feedbackText" aria-live="polite">Choose an answer to get immediate feedback.</p>
         <p class="feedback" id="finalScore" aria-live="polite">Complete all 12 questions to see your session summary.</p>
+        <section class="mistake-review" id="mistakeReviewPanel" hidden aria-label="Mistake review panel">
+          <p class="eyebrow">Mistake Review</p>
+          <ul class="mistake-list" id="mistakeReviewList"></ul>
+          <div class="mistake-actions">
+            <button type="button" id="retryMistakesButton">Retry Missed Words</button>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -423,6 +452,9 @@
     const quizOptions = document.getElementById("quizOptions");
     const feedbackText = document.getElementById("feedbackText");
     const finalScore = document.getElementById("finalScore");
+    const mistakeReviewPanel = document.getElementById("mistakeReviewPanel");
+    const mistakeReviewList = document.getElementById("mistakeReviewList");
+    const retryMistakesButton = document.getElementById("retryMistakesButton");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
@@ -430,10 +462,12 @@
 
     let currentIndex = 0;
     let currentQuestion = 0;
+    let sessionLength = SESSION_LENGTH;
     let definitionVisible = false;
     const learnedWords = new Set();
     const questionAnswers = new Map();
-    const sessionWords = [0];
+    let sessionWords = [0];
+    let sessionMistakes = [];
     const wordStats = new Map(vocabularyWords.map((entry) => [entry.word, {
       attempts: 0,
       correct: 0,
@@ -539,8 +573,8 @@
 
       scoreProgress.textContent = `Score ${correct} / ${attempts}`;
 
-      if (attempts === SESSION_LENGTH) {
-        const accuracy = Math.round((correct / SESSION_LENGTH) * 100);
+      if (attempts === sessionLength) {
+        const accuracy = Math.round((correct / sessionLength) * 100);
         const weakWords = vocabularyWords
           .map((entry) => ({ word: entry.word, incorrect: wordStats.get(entry.word).incorrect }))
           .filter((entry) => entry.incorrect > 0)
@@ -550,10 +584,51 @@
           .join(", ");
         const weakWordsText = weakWords || "none";
 
-        finalScore.textContent = `Session summary: ${correct}/${SESSION_LENGTH} correct (${accuracy}%). Weak words: ${weakWordsText}. Daily streak: ${streakState.days}.`;
+        finalScore.textContent = `Session summary: ${correct}/${sessionLength} correct (${accuracy}%). Weak words: ${weakWordsText}. Daily streak: ${streakState.days}.`;
+        renderMistakeReview();
       } else {
-        finalScore.textContent = `Complete all ${SESSION_LENGTH} questions to see your session summary.`;
+        finalScore.textContent = `Complete all ${sessionLength} questions to see your session summary.`;
+        mistakeReviewPanel.hidden = true;
       }
+    }
+
+    function renderMistakeReview() {
+      mistakeReviewList.innerHTML = "";
+
+      if (sessionMistakes.length === 0) {
+        mistakeReviewPanel.hidden = true;
+        retryMistakesButton.disabled = true;
+        return;
+      }
+
+      for (const mistake of sessionMistakes) {
+        const listItem = document.createElement("li");
+        listItem.textContent = `${mistake.word} - Chosen: ${mistake.chosen} | Correct: ${mistake.correct}`;
+        mistakeReviewList.appendChild(listItem);
+      }
+
+      retryMistakesButton.disabled = false;
+      mistakeReviewPanel.hidden = false;
+    }
+
+    function startRetryRound() {
+      const missedWordIndexes = Array.from(
+        new Set(sessionMistakes.map((mistake) => mistake.wordIndex))
+      );
+
+      if (missedWordIndexes.length === 0) {
+        return;
+      }
+
+      sessionWords = missedWordIndexes;
+      sessionLength = missedWordIndexes.length;
+      sessionMistakes = [];
+      questionAnswers.clear();
+      currentQuestion = 0;
+      currentIndex = sessionWords[0];
+      definitionVisible = false;
+      mistakeReviewPanel.hidden = true;
+      renderCard();
     }
 
     function chooseQuizAnswer(choice, button) {
@@ -570,6 +645,12 @@
           stats.correct += 1;
         } else {
           stats.incorrect += 1;
+          sessionMistakes.push({
+            word: currentWord.word,
+            chosen: choice,
+            correct: currentWord.definition,
+            wordIndex: currentIndex
+          });
         }
 
         applyDailyStreak();
@@ -638,7 +719,7 @@
       wordText.textContent = currentWord.word;
       difficultyText.textContent = currentWord.difficulty;
       exampleText.textContent = `Example: ${currentWord.example}`;
-      wordProgress.textContent = `Question ${currentQuestion + 1} of ${SESSION_LENGTH}`;
+      wordProgress.textContent = `Question ${currentQuestion + 1} of ${sessionLength}`;
       learnedProgress.textContent = `${learnedWords.size} learned`;
       learnedButton.textContent = learned ? "Learned" : "Mark as Learned";
       learnedButton.disabled = learned;
@@ -657,7 +738,7 @@
     function moveToWord(offset) {
       const nextQuestion = currentQuestion + offset;
 
-      if (nextQuestion < 0 || nextQuestion >= SESSION_LENGTH) {
+      if (nextQuestion < 0 || nextQuestion >= sessionLength) {
         return;
       }
 
@@ -674,11 +755,14 @@
       definitionVisible = !definitionVisible;
       renderCard();
     });
+    retryMistakesButton.addEventListener("click", startRetryRound);
     learnedButton.addEventListener("click", () => {
       learnedWords.add(getCurrentWord().word);
       renderCard();
     });
 
+    retryMistakesButton.disabled = true;
+    mistakeReviewPanel.hidden = true;
     updateStreakProgress();
     renderCard();
   </script>

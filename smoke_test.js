@@ -35,6 +35,9 @@ const requiredSnippets = [
   "feedbackText",
   "scoreProgress",
   "finalScore",
+  "mistakeReviewPanel",
+  "mistakeReviewList",
+  "retryMistakesButton",
   "chooseQuizAnswer",
   "Question 1 of 12",
   "Streak 0 days",
@@ -68,6 +71,7 @@ function makeElement(id) {
     textContent: "",
     disabled: false,
     className: "",
+    style: {},
     classList: {
       values: new Set(),
       add(value) {
@@ -131,6 +135,9 @@ const quizOptions = elements.get("quizOptions");
 const feedbackText = elements.get("feedbackText");
 const scoreProgress = elements.get("scoreProgress");
 const finalScore = elements.get("finalScore");
+const mistakeReviewPanel = elements.get("mistakeReviewPanel");
+const mistakeReviewList = elements.get("mistakeReviewList");
+const retryMistakesButton = elements.get("retryMistakesButton");
 const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
 
@@ -166,5 +173,17 @@ for (let index = 0; index < 10; index += 1) {
 assert(finalScore.textContent.includes("Session summary:"), "after 12 attempts the session summary should appear");
 assert(finalScore.textContent.includes("Weak words:"), "session summary should include weak words");
 assert(finalScore.textContent.includes("Daily streak:"), "session summary should include daily streak");
+assert(mistakeReviewPanel.hidden === false, "mistake review panel should be visible after session ends when mistakes exist");
+assert(mistakeReviewList.children.length > 0, "mistake review list should render missed words");
+assert(mistakeReviewList.children[0].textContent.includes("Chosen:"), "mistake review should include chosen answer text");
+assert(mistakeReviewList.children[0].textContent.includes("Correct:"), "mistake review should include correct answer text");
+assert(retryMistakesButton.disabled === false, "retry button should be enabled when mistakes exist");
+
+retryMistakesButton.click();
+
+assert(scoreProgress.textContent === "Score 0 / 0", "retry round should reset score tracking");
+assert(wordProgress.textContent.includes("Question 1 of"), "retry round should restart question progress");
+assert(finalScore.textContent.includes("Complete all"), "retry round should reset final score prompt");
+assert(mistakeReviewPanel.hidden === true, "mistake review panel should hide during focused retry round");
 
 console.log("Smoke test passed: vocabulary practice UI and quiz interactions are exposed.");
