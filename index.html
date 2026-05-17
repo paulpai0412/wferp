@@ -131,6 +131,28 @@
       text-wrap: pretty;
     }
 
+    .due-reminder {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 10px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .due-reminder.has-due {
+      border-color: var(--accent);
+      color: #fffdf8;
+      background: var(--accent);
+    }
+
     .card {
       min-height: 430px;
       padding: clamp(24px, 5vw, 52px);
@@ -179,6 +201,13 @@
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+    }
+
+    .due-state-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
     }
 
     .review-summary-panel {
@@ -546,6 +575,7 @@
         <span class="progress-count" id="learnedProgress">0 learned</span>
         <span class="progress-count" id="scoreProgress">Score 0 / 0</span>
         <span class="progress-count" id="streakProgress">Streak 0 days</span>
+        <span class="due-reminder" id="dueReminderBadge">Review Due 0</span>
         <span class="progress-status" id="progressRestoreStatus">New progress session</span>
       </aside>
     </section>
@@ -598,6 +628,9 @@
       <p class="difficulty-filter-label">Difficulty Filter</p>
       <div id="difficultyFilterControls"></div>
       <span class="difficulty-filter-status" id="activeDifficultyStatus">Active: All</span>
+      <p class="difficulty-filter-label">Review State</p>
+      <div id="dueStateFilterControls"></div>
+      <span class="difficulty-filter-status" id="activeDueStateStatus">Review: All</span>
     </section>
 
     <section id="randomQuizBanner" hidden aria-label="Random quiz in progress" aria-live="polite">
@@ -745,18 +778,23 @@
     const themeToggleButton = document.getElementById("themeToggleButton");
     const difficultyFilterControls = document.getElementById("difficultyFilterControls");
     const activeDifficultyStatus = document.getElementById("activeDifficultyStatus");
+    const dueStateFilterControls = document.getElementById("dueStateFilterControls");
+    const activeDueStateStatus = document.getElementById("activeDueStateStatus");
+    const dueReminderBadge = document.getElementById("dueReminderBadge");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
     const learnedButton = document.getElementById("learnedButton");
 
     const difficultyFilters = ["All", "Easy", "Medium", "Hard"];
+    const dueStateFilters = ["All", "New", "Due", "Reviewed"];
     let currentIndex = 0;
     let currentQuestion = 0;
     let sessionLength = SESSION_LENGTH;
     let definitionVisible = false;
     let isDarkTheme = safeStorage.get(THEME_STORAGE_KEY) === "dark";
     let currentDifficultyFilter = "All";
+    let currentDueStateFilter = "All";
     const learnedWords = new Set();
     const questionAnswers = new Map();
     let filteredWordIndexes = vocabularyWords.map((_, index) => index);
@@ -769,8 +807,9 @@
       lastResult: null
     }]));
     const spacedRepetitionState = new Map(vocabularyWords.map((entry) => [entry.word, {
-      intervalDays: 0,
-      nextReviewDay: null
+      nextReviewAt: null,
+      reviewInterval: 0,
+      reviewCount: 0
     }]));
 
     function toDifficultyLabel(value) {
@@ -805,7 +844,8 @@
       safeStorage.set(DIFFICULTY_STORAGE_KEY, currentDifficultyFilter);
       safeStorage.set(PROGRESS_STORAGE_KEY, JSON.stringify({
         learnedWords: Array.from(learnedWords),
-        wordStats: savedWordStats
+        wordStats: savedWordStats,
+        reviewMetadata: Object.fromEntries(spacedRepetitionState)
       }));
 
       setProgressRestoreStatus("Progress saved on this device");
@@ -856,6 +896,22 @@
           }
         }
 
+        if (parsed.reviewMetadata && typeof parsed.reviewMetadata === "object") {
+          for (const [word, savedReview] of Object.entries(parsed.reviewMetadata)) {
+            if (!spacedRepetitionState.has(word) || !savedReview || typeof savedReview !== "object") {
+              continue;
+            }
+
+            const nextReview = spacedRepetitionState.get(word);
+            nextReview.nextReviewAt = Number.isFinite(savedReview.nextReviewAt) ? savedReview.nextReviewAt : null;
+            nextReview.reviewInterval = Number.parseInt(String(savedReview.reviewInterval || 0), 10) || 0;
+            nextReview.reviewCount = Number.parseInt(String(savedReview.reviewCount || 0), 10) || 0;
+            if (nextReview.nextReviewAt !== null || nextReview.reviewInterval > 0 || nextReview.reviewCount > 0) {
+              restoredAnyProgress = true;
+            }
+          }
+        }
+
         setProgressRestoreStatus(
           restoredAnyProgress
             ? "Progress restored from previous session"
@@ -866,48 +922,63 @@
       }
     }
 
-    function getCurrentDayNumber() {
-      return Math.floor(Date.now() / MILLISECONDS_PER_DAY);
+    function getDueStateForWord(word) {
+      const reviewState = spacedRepetitionState.get(word.word);
+      if (!reviewState || reviewState.nextReviewAt === null) {
+        return "new";
+      }
+
+      return reviewState.nextReviewAt <= Date.now() ? "due" : "ok";
+    }
+
+    function getScheduledIntervalDays(reviewCount) {
+      if (reviewCount <= 1) {
+        return 1;
+      }
+      if (reviewCount === 2) {
+        return 3;
+      }
+      if (reviewCount === 3) {
+        return 7;
+      }
+      return 14;
     }
 
     function updateSpacedRepetitionState(word, isCorrect) {
       const reviewState = spacedRepetitionState.get(word.word);
-      const todayDay = getCurrentDayNumber();
+      const now = Date.now();
 
       if (isCorrect) {
-        const nextInterval = reviewState.intervalDays > 0 ? Math.min(reviewState.intervalDays * 2, 30) : 1;
-        reviewState.intervalDays = nextInterval;
-        reviewState.nextReviewDay = todayDay + nextInterval;
+        reviewState.reviewCount += 1;
+        reviewState.reviewInterval = getScheduledIntervalDays(reviewState.reviewCount);
+        reviewState.nextReviewAt = now + reviewState.reviewInterval * MILLISECONDS_PER_DAY;
       } else {
-        reviewState.intervalDays = 1;
-        reviewState.nextReviewDay = todayDay;
+        reviewState.reviewCount = 0;
+        reviewState.reviewInterval = 1;
+        reviewState.nextReviewAt = now + MILLISECONDS_PER_DAY;
       }
+
+      updateReviewSummaryPanel();
+      updateDueReminderBadge();
     }
 
     function updateReviewSummaryPanel() {
-      const todayDay = getCurrentDayNumber();
+      const now = Date.now();
       let due = 0;
       let overdue = 0;
       let fresh = 0;
 
       for (const word of vocabularyWords) {
-        const stats = wordStats.get(word.word);
-        if (stats.attempts === 0) {
+        const reviewState = spacedRepetitionState.get(word.word);
+        if (reviewState.nextReviewAt === null) {
           fresh += 1;
           continue;
         }
 
-        const reviewState = spacedRepetitionState.get(word.word);
-        if (reviewState.nextReviewDay === null) {
-          due += 1;
-          continue;
-        }
-
-        const daysPastDue = todayDay - reviewState.nextReviewDay;
-        if (daysPastDue >= 0) {
+        if (reviewState.nextReviewAt <= now) {
           due += 1;
         }
-        if (daysPastDue > 1) {
+        if (reviewState.nextReviewAt <= now - MILLISECONDS_PER_DAY) {
           overdue += 1;
         }
       }
@@ -917,18 +988,42 @@
       newCount.textContent = String(fresh);
     }
 
+    function updateDueReminderBadge() {
+      const dueValue = Number.parseInt(dueCount.textContent || "0", 10) || 0;
+      dueReminderBadge.textContent = `Review Due ${dueValue}`;
+      dueReminderBadge.hidden = dueValue === 0;
+      if (dueValue > 0) {
+        dueReminderBadge.classList.add("has-due");
+      } else {
+        dueReminderBadge.classList.remove("has-due");
+      }
+    }
+
     function getCurrentWord() {
       return vocabularyWords[currentIndex];
     }
 
-    function getFilteredWordIndexes(filter) {
-      if (filter === "All") {
-        return vocabularyWords.map((_, index) => index);
-      }
-
+    function getFilteredWordIndexes() {
       return vocabularyWords
         .map((entry, index) => ({ entry, index }))
-        .filter((item) => item.entry.difficulty === filter)
+        .filter((item) => {
+          const matchesDifficulty = currentDifficultyFilter === "All" || item.entry.difficulty === currentDifficultyFilter;
+          if (!matchesDifficulty) {
+            return false;
+          }
+
+          const dueState = getDueStateForWord(item.entry);
+          if (currentDueStateFilter === "All") {
+            return true;
+          }
+          if (currentDueStateFilter === "New") {
+            return dueState === "new";
+          }
+          if (currentDueStateFilter === "Due") {
+            return dueState === "due";
+          }
+          return dueState === "ok";
+        })
         .map((item) => item.index);
     }
 
@@ -948,13 +1043,23 @@
 
     function applyDifficultyFilter(filter) {
       currentDifficultyFilter = filter;
-      filteredWordIndexes = getFilteredWordIndexes(filter);
+      filteredWordIndexes = getFilteredWordIndexes();
       if (filteredWordIndexes.length === 0) {
         currentDifficultyFilter = "All";
-        filteredWordIndexes = getFilteredWordIndexes("All");
+        filteredWordIndexes = getFilteredWordIndexes();
       }
 
       renderDifficultyFilters();
+      renderDueStateFilters();
+      resetSessionForFilter();
+      savePracticeProgress();
+      renderCard();
+    }
+
+    function applyDueStateFilter(filter) {
+      currentDueStateFilter = filter;
+      filteredWordIndexes = getFilteredWordIndexes();
+      renderDueStateFilters();
       resetSessionForFilter();
       savePracticeProgress();
       renderCard();
@@ -976,6 +1081,24 @@
       }
 
       activeDifficultyStatus.textContent = `Active: ${currentDifficultyFilter}`;
+    }
+
+    function renderDueStateFilters() {
+      dueStateFilterControls.innerHTML = "";
+
+      for (const filter of dueStateFilters) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "difficulty-filter-button";
+        if (filter === currentDueStateFilter) {
+          button.classList.add("active");
+        }
+        button.textContent = filter;
+        button.addEventListener("click", () => applyDueStateFilter(filter));
+        dueStateFilterControls.appendChild(button);
+      }
+
+      activeDueStateStatus.textContent = `Review: ${currentDueStateFilter}`;
     }
 
     function applyTheme() {
@@ -1222,6 +1345,18 @@
         randomQuizCorrect += 1;
       }
 
+      const stats = wordStats.get(currentWord.word);
+      stats.attempts += 1;
+      stats.lastResult = isCorrect;
+      if (isCorrect) {
+        stats.correct += 1;
+      } else {
+        stats.incorrect += 1;
+      }
+      updateSpacedRepetitionState(currentWord, isCorrect);
+      filteredWordIndexes = getFilteredWordIndexes();
+      savePracticeProgress();
+
       feedbackText.textContent = isCorrect
         ? "Correct. This is the meaning to remember."
         : `Not quite. Correct meaning: ${currentWord.definition}`;
@@ -1345,6 +1480,7 @@
         }
 
         updateSpacedRepetitionState(currentWord, isCorrect);
+        filteredWordIndexes = getFilteredWordIndexes();
         applyDailyStreak();
         savePracticeProgress();
       }
@@ -1366,7 +1502,6 @@
       feedbackText.classList.remove("correct", "incorrect");
       feedbackText.classList.add(isCorrect ? "correct" : "incorrect");
       updateScore();
-      updateReviewSummaryPanel();
     }
 
     function renderQuiz() {
@@ -1419,6 +1554,7 @@
       learnedButton.disabled = learned;
       toggleDefinitionButton.textContent = definitionVisible ? "Hide Definition" : "Reveal Definition";
       updateReviewSummaryPanel();
+      updateDueReminderBadge();
       renderQuiz();
 
       if (definitionVisible) {
@@ -1456,7 +1592,10 @@
       applyTheme();
     });
     learnedButton.addEventListener("click", () => {
-      learnedWords.add(getCurrentWord().word);
+      const currentWord = getCurrentWord();
+      learnedWords.add(currentWord.word);
+      updateSpacedRepetitionState(currentWord, true);
+      filteredWordIndexes = getFilteredWordIndexes();
       savePracticeProgress();
       renderCard();
     });
@@ -1465,7 +1604,8 @@
     mistakeReviewPanel.hidden = true;
     restorePracticeProgress();
     renderDifficultyFilters();
-    filteredWordIndexes = getFilteredWordIndexes(currentDifficultyFilter);
+    renderDueStateFilters();
+    filteredWordIndexes = getFilteredWordIndexes();
     resetSessionForFilter();
     applyTheme();
     updateStreakProgress();

@@ -40,6 +40,11 @@ const requiredSnippets = [
   "retryMistakesButton",
   "themeToggleButton",
   "difficultyFilterControls",
+  "dueStateFilterControls",
+  "dueReminderBadge",
+  "activeDueStateStatus",
+  "nextReviewAt",
+  "reviewInterval",
   "vocabQuizTheme",
   "chooseQuizAnswer",
   "Question 1 of 12",
@@ -121,6 +126,21 @@ function makeElement(id) {
 
 const elements = new Map();
 const storage = new Map();
+const now = Date.now();
+
+storage.set(
+  "vocabPracticeProgress",
+  JSON.stringify({
+    learnedWords: [],
+    wordStats: {
+      resilient: { attempts: 1, correct: 0, incorrect: 1, lastResult: false }
+    },
+    reviewMetadata: {
+      resilient: { nextReviewAt: now - 60_000, reviewInterval: 1, reviewCount: 1 }
+    }
+  })
+);
+
 const localStorage = {
   getItem(key) {
     return storage.has(key) ? storage.get(key) : null;
@@ -154,11 +174,17 @@ const retryMistakesButton = elements.get("retryMistakesButton");
 const themeToggleButton = elements.get("themeToggleButton");
 const difficultyText = elements.get("difficultyText");
 const difficultyFilterControls = elements.get("difficultyFilterControls");
+const dueStateFilterControls = elements.get("dueStateFilterControls");
+const dueReminderBadge = elements.get("dueReminderBadge");
 const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
+const dueCount = elements.get("dueCount");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
 assert(difficultyFilterControls.children.length === 4, "difficulty filter should render all filter options");
+assert(dueStateFilterControls.children.length === 4, "due-state filter should render all filter options");
+assert(dueCount.textContent === "1", "review summary should count due words from stored metadata");
+assert(dueReminderBadge.textContent.includes("1"), "due reminder badge should show current due count");
 assert(scoreProgress.textContent === "Score 0 / 0", "initial score should show zero answered questions");
 assert(wordProgress.textContent === "Question 1 of 12", "progress should start from question 1 of 12");
 assert(streakProgress.textContent.includes("Streak"), "streak progress should be visible");
@@ -187,6 +213,11 @@ assert(allFilterButton, "all filter button should exist");
 allFilterButton.click();
 assert(difficultyText.textContent === "Medium", "all filter should restore unfiltered card list behavior");
 
+const dueFilterButton = dueStateFilterControls.children.find((button) => button.textContent === "Due");
+assert(dueFilterButton, "due-state due filter button should exist");
+dueFilterButton.click();
+assert(difficultyText.textContent === "Medium", "due-state filter should keep due words visible");
+
 const correctButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
 assert(correctButton, "first quiz should include the correct definition for resilient");
 
@@ -194,6 +225,33 @@ correctButton.click();
 
 assert(feedbackText.textContent.includes("Correct"), "clicking the correct answer should show immediate positive feedback");
 assert(scoreProgress.textContent === "Score 1 / 1", "score should update after a correct quiz answer");
+assert(dueCount.textContent === "0", "due count should update after a review action");
+assert(
+  dueReminderBadge.hidden === true || dueReminderBadge.textContent.includes("0"),
+  "due reminder badge should hide or show zero when there are no due words"
+);
+
+const reviewedFilterButton = dueStateFilterControls.children.find((button) => button.textContent === "Reviewed");
+assert(reviewedFilterButton, "due-state reviewed filter button should exist");
+reviewedFilterButton.click();
+assert(wordProgress.textContent.includes("Question"), "reviewed filter should still render a question view");
+
+const allDueStateButton = dueStateFilterControls.children.find((button) => button.textContent === "All");
+assert(allDueStateButton, "due-state all filter button should exist");
+allDueStateButton.click();
+
+const refreshedCorrectButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
+assert(refreshedCorrectButton, "after resetting due-state filter, first quiz should still include resilient definition");
+refreshedCorrectButton.click();
+assert(scoreProgress.textContent === "Score 1 / 1", "score should restart and increment after re-answering first question");
+
+const savedProgressRaw = localStorage.getItem("vocabPracticeProgress");
+assert(savedProgressRaw, "progress should be persisted after review action");
+const savedProgress = JSON.parse(savedProgressRaw);
+assert(savedProgress.reviewMetadata, "saved progress should include review metadata");
+assert(savedProgress.reviewMetadata.resilient, "review metadata should include reviewed word state");
+assert(typeof savedProgress.reviewMetadata.resilient.nextReviewAt === "number", "saved review metadata should include nextReviewAt timestamp");
+assert(typeof savedProgress.reviewMetadata.resilient.reviewInterval === "number", "saved review metadata should include reviewInterval days");
 
 elements.get("nextButton").click();
 const wrongButton = quizOptions.children.find((button) => !button.textContent.includes("attention to detail"));
