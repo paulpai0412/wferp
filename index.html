@@ -489,6 +489,102 @@
       gap: 12px;
     }
 
+    .study-controls {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .shortcut-help-button {
+      font-size: 0.86rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .shortcut-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+
+    .shortcut-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(18, 24, 36, 0.58);
+      backdrop-filter: blur(3px);
+    }
+
+    .shortcut-modal-panel {
+      position: relative;
+      width: min(520px, 100%);
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--card-surface);
+      box-shadow: var(--shadow);
+    }
+
+    .shortcut-modal-title {
+      margin: 0;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      text-wrap: pretty;
+    }
+
+    .shortcut-modal-subtitle {
+      margin: 10px 0 18px;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.9rem;
+      text-wrap: pretty;
+    }
+
+    .shortcut-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .shortcut-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--card) 90%, transparent);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .shortcut-key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 16%, var(--card));
+      color: var(--accent-dark);
+      font-size: 0.82rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .shortcut-modal-actions {
+      margin-top: 16px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
     button {
       min-height: 48px;
       border: 1px solid var(--line);
@@ -763,17 +859,36 @@
       </div>
     </section>
 
-    <nav class="controls" aria-label="Study controls">
+    <nav class="controls study-controls" aria-label="Study controls and help">
       <button type="button" id="previousButton">Previous</button>
       <button type="button" class="primary" id="toggleDefinitionButton">Reveal Definition</button>
       <button type="button" class="learned" id="learnedButton">Mark as Learned</button>
       <button type="button" id="nextButton">Next</button>
+      <button type="button" class="shortcut-help-button" id="openShortcutModalButton">Keyboard Shortcuts</button>
     </nav>
 
     <nav class="controls" aria-label="Random quiz controls" style="grid-template-columns: 1fr 1fr;">
       <button type="button" class="primary" id="startRandomQuizButton">🎲 Start Random Quiz</button>
       <button type="button" id="startFilteredRandomQuizButton">Random Quiz (Current Filter)</button>
     </nav>
+
+    <section class="shortcut-modal" id="shortcutModal" hidden aria-label="Keyboard shortcuts" role="dialog" aria-modal="true" aria-labelledby="shortcutModalTitle">
+      <div class="shortcut-modal-backdrop" id="shortcutModalBackdrop"></div>
+      <div class="shortcut-modal-panel">
+        <h2 class="shortcut-modal-title" id="shortcutModalTitle">Keyboard Shortcuts</h2>
+        <p class="shortcut-modal-subtitle">Use these keys during study mode to move faster.</p>
+        <ul class="shortcut-list">
+          <li><span>Next word</span><span class="shortcut-key">Right Arrow</span></li>
+          <li><span>Previous word</span><span class="shortcut-key">Left Arrow</span></li>
+          <li><span>Reveal answer</span><span class="shortcut-key">Space</span></li>
+          <li><span>Mark remembered</span><span class="shortcut-key">M</span></li>
+          <li><span>Close modal</span><span class="shortcut-key">Esc</span></li>
+        </ul>
+        <div class="shortcut-modal-actions">
+          <button type="button" id="closeShortcutModalButton">Close</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -920,6 +1035,10 @@
     const closeRandomQuizSummaryButton = document.getElementById("closeRandomQuizSummaryButton");
     const startRandomQuizButton = document.getElementById("startRandomQuizButton");
     const startFilteredRandomQuizButton = document.getElementById("startFilteredRandomQuizButton");
+    const openShortcutModalButton = document.getElementById("openShortcutModalButton");
+    const shortcutModal = document.getElementById("shortcutModal");
+    const shortcutModalBackdrop = document.getElementById("shortcutModalBackdrop");
+    const closeShortcutModalButton = document.getElementById("closeShortcutModalButton");
 
     const difficultyFilters = ["All", "Easy", "Medium", "Hard"];
     const dueStateFilters = ["All", "New", "Due", "Overdue"];
@@ -947,6 +1066,7 @@
     let randomQuizCorrect = 0;
     let randomQuizIncorrect = 0;
     let randomQuizAnswered = false;
+    let shortcutModalOpen = false;
     const wordStats = new Map(vocabularyWords.map((entry) => [entry.word, {
       attempts: 0,
       correct: 0,
@@ -2006,6 +2126,85 @@
       renderCard();
     }
 
+    function openShortcutModal() {
+      shortcutModal.hidden = false;
+      shortcutModalOpen = true;
+      if (closeShortcutModalButton && typeof closeShortcutModalButton.focus === "function") {
+        closeShortcutModalButton.focus();
+      }
+    }
+
+    function closeShortcutModal() {
+      shortcutModal.hidden = true;
+      shortcutModalOpen = false;
+    }
+
+    function isEditableTarget(target) {
+      if (!target || typeof target.tagName !== "string") {
+        return false;
+      }
+
+      const tag = target.tagName.toLowerCase();
+      return tag === "input" || tag === "textarea" || tag === "select";
+    }
+
+    function handleGlobalShortcuts(event) {
+      if (!event || typeof event.key !== "string") {
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (shortcutModalOpen) {
+          closeShortcutModal();
+          if (typeof event.preventDefault === "function") {
+            event.preventDefault();
+          }
+        }
+        return;
+      }
+
+      if (shortcutModalOpen || isEditableTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "?" || (event.key === "/" && event.shiftKey)) {
+        openShortcutModal();
+        if (typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.key === "ArrowRight") {
+        moveToWord(1);
+        if (typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        moveToWord(-1);
+        if (typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.key === " " || event.key === "Spacebar") {
+        definitionVisible = !definitionVisible;
+        renderCard();
+        if (typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.key.toLowerCase() === "m") {
+        learnedButton.click();
+      }
+    }
+
 
     previousButton.addEventListener("click", () => moveToWord(-1));
     nextButton.addEventListener("click", () => moveToWord(1));
@@ -2093,6 +2292,12 @@
       randomQuizSummary.hidden = true;
       renderCard();
     });
+    openShortcutModalButton.addEventListener("click", openShortcutModal);
+    closeShortcutModalButton.addEventListener("click", closeShortcutModal);
+    shortcutModalBackdrop.addEventListener("click", closeShortcutModal);
+    if (typeof document.addEventListener === "function") {
+      document.addEventListener("keydown", handleGlobalShortcuts);
+    }
     themeToggleButton.addEventListener("click", () => {
       isDarkTheme = !isDarkTheme;
       applyTheme();
