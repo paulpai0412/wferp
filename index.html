@@ -500,6 +500,77 @@
       transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
     }
 
+    input,
+    select {
+      min-height: 42px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      color: var(--ink);
+      font: 600 0.92rem/1.2 "Trebuchet MS", Verdana, sans-serif;
+    }
+
+    .tagging-panel,
+    .custom-list-panel {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 253, 248, 0.72);
+      display: grid;
+      gap: 10px;
+    }
+
+    .inline-controls {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    .tag-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 90%, var(--accent) 10%);
+      font: 700 0.75rem/1 "Trebuchet MS", Verdana, sans-serif;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .tag-chip-remove {
+      min-height: auto;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+    }
+
+    .practice-source-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .practice-source-status {
+      margin: 0;
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
     button:hover {
       transform: translateY(-2px);
       border-color: rgba(47, 95, 115, 0.42);
@@ -552,6 +623,11 @@
 
       .quiz-header {
         align-items: start;
+      }
+
+      .inline-controls,
+      .practice-source-row {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -631,6 +707,28 @@
       <p class="difficulty-filter-label">Review State</p>
       <div id="dueStateFilterControls"></div>
       <span class="difficulty-filter-status" id="activeDueStateStatus">Review: All</span>
+
+      <section class="tagging-panel" aria-label="Word tagging controls">
+        <p class="difficulty-filter-label">Tag Current Word</p>
+        <div class="inline-controls">
+          <input id="tagInput" type="text" placeholder="Add tag (e.g. travel)">
+          <button type="button" id="addTagButton">Add Tag</button>
+        </div>
+        <div class="tag-chips" id="currentWordTags" aria-live="polite"></div>
+      </section>
+
+      <section class="custom-list-panel" aria-label="Custom practice list controls">
+        <p class="difficulty-filter-label">Custom Practice Lists</p>
+        <select id="customListSelect" aria-label="Saved custom lists"></select>
+        <input id="customListNameInput" type="text" placeholder="List name">
+        <input id="customListTagFiltersInput" type="text" placeholder="Tag filters (comma separated)">
+        <button type="button" id="saveCustomListButton">Save Custom List</button>
+        <div class="practice-source-row">
+          <select id="practiceSourceSelect" aria-label="Practice source"></select>
+          <button type="button" id="applyPracticeSourceButton">Use Source</button>
+        </div>
+        <p class="practice-source-status" id="practiceSourceStatus">Practice source: default</p>
+      </section>
     </section>
 
     <section id="randomQuizBanner" hidden aria-label="Random quiz in progress" aria-live="polite">
@@ -684,52 +782,63 @@
     const PROGRESS_STORAGE_KEY = "vocabPracticeProgress";
     const DIFFICULTY_STORAGE_KEY = "vocabDifficultyFilter";
     const DUE_STATE_FILTER_STORAGE_KEY = "vocabDueStateFilter";
+    const TAGS_STORAGE_KEY = "vocabWordTags";
+    const CUSTOM_LISTS_STORAGE_KEY = "vocabCustomPracticeLists";
+    const PRACTICE_SOURCE_STORAGE_KEY = "vocabPracticeSource";
     const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
     const vocabularyWords = [
       {
+        id: "resilient",
         word: "resilient",
         definition: "Able to recover quickly after difficulty or change.",
         example: "After several failed attempts, the resilient team adjusted their plan and tried again.",
         difficulty: "Medium"
       },
       {
+        id: "meticulous",
         word: "meticulous",
         definition: "Showing great attention to detail and accuracy.",
         example: "The editor was meticulous, checking every citation before publication.",
         difficulty: "Hard"
       },
       {
+        id: "curious",
         word: "curious",
         definition: "Eager to learn, ask questions, or discover new things.",
         example: "A curious student often learns more because every answer leads to another question.",
         difficulty: "Easy"
       },
       {
+        id: "concise",
         word: "concise",
         definition: "Giving a lot of information clearly in only a few words.",
         example: "Her concise summary helped everyone understand the plan in two minutes.",
         difficulty: "Medium"
       },
       {
+        id: "ambiguous",
         word: "ambiguous",
         definition: "Having more than one possible meaning or interpretation.",
         example: "The ambiguous instruction caused two teams to solve the problem differently.",
         difficulty: "Hard"
       },
       {
+        id: "generous",
         word: "generous",
         definition: "Willing to give more help, time, or resources than expected.",
         example: "The generous mentor stayed late to review the learner's practice essay.",
         difficulty: "Easy"
       },
       {
+        id: "adapt",
         word: "adapt",
         definition: "To change your behavior or ideas so they fit a new situation.",
         example: "The class had to adapt when the lesson moved from the library to an online meeting.",
         difficulty: "Easy"
       },
       {
+        id: "insight",
         word: "insight",
         definition: "A clear and deep understanding of a person, problem, or situation.",
         example: "Her insight helped the team see why learners were skipping the review step.",
@@ -783,6 +892,16 @@
     const activeDifficultyStatus = document.getElementById("activeDifficultyStatus");
     const dueStateFilterControls = document.getElementById("dueStateFilterControls");
     const activeDueStateStatus = document.getElementById("activeDueStateStatus");
+    const tagInput = document.getElementById("tagInput");
+    const addTagButton = document.getElementById("addTagButton");
+    const currentWordTags = document.getElementById("currentWordTags");
+    const customListSelect = document.getElementById("customListSelect");
+    const customListNameInput = document.getElementById("customListNameInput");
+    const customListTagFiltersInput = document.getElementById("customListTagFiltersInput");
+    const saveCustomListButton = document.getElementById("saveCustomListButton");
+    const practiceSourceSelect = document.getElementById("practiceSourceSelect");
+    const applyPracticeSourceButton = document.getElementById("applyPracticeSourceButton");
+    const practiceSourceStatus = document.getElementById("practiceSourceStatus");
     const previousButton = document.getElementById("previousButton");
     const nextButton = document.getElementById("nextButton");
     const toggleDefinitionButton = document.getElementById("toggleDefinitionButton");
@@ -817,14 +936,17 @@
     let sessionMistakes = [];
 
     let randomQuizActive = false;
+    const learnedWords = new Set();
+    const questionAnswers = new Map();
+    const wordTags = new Map(vocabularyWords.map((entry) => [entry.id, []]));
+    let customPracticeLists = [];
+    let selectedCustomListId = "";
+    let currentPracticeSource = "default";
     let randomQuizWords = [];
     let randomQuizIndex = 0;
     let randomQuizCorrect = 0;
     let randomQuizIncorrect = 0;
     let randomQuizAnswered = false;
-
-    const learnedWords = new Set();
-    const questionAnswers = new Map();
     const wordStats = new Map(vocabularyWords.map((entry) => [entry.word, {
       attempts: 0,
       correct: 0,
@@ -1093,12 +1215,241 @@
       return vocabularyWords[currentIndex] || null;
     }
 
-    function getFilteredWordIndexes() {
-      const dueStateFilter = toDueStateValue(currentDueStateFilter);
+    function normalizeTag(tag) {
+      return String(tag || "").trim().toLowerCase();
+    }
 
+    function parseTagFilters(rawValue) {
+      return Array.from(new Set(
+        String(rawValue || "")
+          .split(",")
+          .map((token) => normalizeTag(token))
+          .filter(Boolean)
+      ));
+    }
+
+    function getCurrentWordTags() {
+      return wordTags.get(getCurrentWord().id) || [];
+    }
+
+    function saveTaggingAndLists() {
+      const savedTags = {};
+      for (const [wordId, tags] of wordTags) {
+        savedTags[wordId] = tags.slice();
+      }
+
+      safeStorage.set(TAGS_STORAGE_KEY, JSON.stringify(savedTags));
+      safeStorage.set(CUSTOM_LISTS_STORAGE_KEY, JSON.stringify(customPracticeLists));
+      safeStorage.set(PRACTICE_SOURCE_STORAGE_KEY, currentPracticeSource);
+    }
+
+    function restoreTaggingAndLists() {
+      const rawTags = safeStorage.get(TAGS_STORAGE_KEY);
+      if (rawTags) {
+        try {
+          const parsedTags = JSON.parse(rawTags);
+          if (parsedTags && typeof parsedTags === "object") {
+            for (const [wordId, tags] of Object.entries(parsedTags)) {
+              if (!wordTags.has(wordId) || !Array.isArray(tags)) {
+                continue;
+              }
+              wordTags.set(wordId, Array.from(new Set(tags.map((tag) => normalizeTag(tag)).filter(Boolean))));
+            }
+          }
+        } catch {
+          // ignore unreadable tag storage
+        }
+      }
+
+      const rawLists = safeStorage.get(CUSTOM_LISTS_STORAGE_KEY);
+      if (rawLists) {
+        try {
+          const parsedLists = JSON.parse(rawLists);
+          if (Array.isArray(parsedLists)) {
+            customPracticeLists = parsedLists
+              .map((item) => {
+                if (!item || typeof item !== "object") {
+                  return null;
+                }
+
+                const id = String(item.id || "").trim();
+                const name = String(item.name || "").trim();
+                const tagFilters = Array.isArray(item.tagFilters)
+                  ? Array.from(new Set(item.tagFilters.map((tag) => normalizeTag(tag)).filter(Boolean)))
+                  : [];
+                const wordIds = Array.isArray(item.wordIds)
+                  ? Array.from(new Set(item.wordIds.map((wordId) => String(wordId)).filter((wordId) => vocabularyWords.some((entry) => entry.id === wordId))))
+                  : [];
+
+                if (!id || !name) {
+                  return null;
+                }
+
+                return { id, name, tagFilters, wordIds };
+              })
+              .filter(Boolean);
+          }
+        } catch {
+          // ignore unreadable custom list storage
+        }
+      }
+
+      const savedSource = safeStorage.get(PRACTICE_SOURCE_STORAGE_KEY);
+      if (savedSource) {
+        currentPracticeSource = String(savedSource);
+      }
+    }
+
+    function buildWordIdsFromTagFilters(tagFilters) {
+      return vocabularyWords
+        .filter((entry) => {
+          const tags = wordTags.get(entry.id) || [];
+          if (tags.length === 0) {
+            return false;
+          }
+          if (tagFilters.length === 0) {
+            return true;
+          }
+          return tagFilters.some((tag) => tags.includes(tag));
+        })
+        .map((entry) => entry.id);
+    }
+
+    function getWordIndexesFromIds(wordIds) {
+      const idSet = new Set(wordIds);
       return vocabularyWords
         .map((entry, index) => ({ entry, index }))
-        .filter((item) => currentDifficultyFilter === "All" || item.entry.difficulty === currentDifficultyFilter)
+        .filter((item) => idSet.has(item.entry.id))
+        .map((item) => item.index);
+    }
+
+    function getPracticeSourceWordIndexes() {
+      if (currentPracticeSource === "default") {
+        return vocabularyWords.map((_, index) => index);
+      }
+
+      const selectedList = customPracticeLists.find((item) => item.id === currentPracticeSource);
+      if (!selectedList) {
+        return vocabularyWords.map((_, index) => index);
+      }
+
+      return getWordIndexesFromIds(selectedList.wordIds);
+    }
+
+    function renderCurrentWordTags() {
+      currentWordTags.innerHTML = "";
+      for (const tag of getCurrentWordTags()) {
+        const tagChip = document.createElement("span");
+        tagChip.className = "tag-chip";
+        tagChip.textContent = tag;
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "tag-chip-remove";
+        removeButton.textContent = "x";
+        removeButton.addEventListener("click", () => {
+          const updatedTags = getCurrentWordTags().filter((entryTag) => entryTag !== tag);
+          wordTags.set(getCurrentWord().id, updatedTags);
+          saveTaggingAndLists();
+          renderCurrentWordTags();
+        });
+
+        tagChip.appendChild(removeButton);
+        currentWordTags.appendChild(tagChip);
+      }
+    }
+
+    function renderCustomListControls() {
+      customListSelect.innerHTML = "";
+
+      for (const item of customPracticeLists) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = `${item.name} (${item.wordIds.length})`;
+        customListSelect.appendChild(option);
+      }
+
+      if (customPracticeLists.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No saved custom lists";
+        customListSelect.appendChild(option);
+      }
+
+      if (!customPracticeLists.some((item) => item.id === selectedCustomListId)) {
+        selectedCustomListId = customPracticeLists[0] ? customPracticeLists[0].id : "";
+      }
+
+      customListSelect.value = selectedCustomListId;
+
+      const selectedList = customPracticeLists.find((item) => item.id === selectedCustomListId);
+      if (selectedList) {
+        customListNameInput.value = selectedList.name;
+        customListTagFiltersInput.value = selectedList.tagFilters.join(", ");
+      } else {
+        customListNameInput.value = "";
+        customListTagFiltersInput.value = "";
+      }
+    }
+
+    function renderPracticeSourceControls() {
+      practiceSourceSelect.innerHTML = "";
+
+      const defaultOption = document.createElement("option");
+      defaultOption.value = "default";
+      defaultOption.textContent = "Default (all words)";
+      practiceSourceSelect.appendChild(defaultOption);
+
+      for (const item of customPracticeLists) {
+        const option = document.createElement("option");
+        option.value = item.id;
+        option.textContent = `Custom: ${item.name} (${item.wordIds.length})`;
+        practiceSourceSelect.appendChild(option);
+      }
+
+      if (currentPracticeSource !== "default" && !customPracticeLists.some((item) => item.id === currentPracticeSource)) {
+        currentPracticeSource = "default";
+      }
+
+      practiceSourceSelect.value = currentPracticeSource;
+
+      if (currentPracticeSource === "default") {
+        practiceSourceStatus.textContent = "Practice source: default";
+      } else {
+        const selectedList = customPracticeLists.find((item) => item.id === currentPracticeSource);
+        practiceSourceStatus.textContent = selectedList
+          ? `Practice source: ${selectedList.name}`
+          : "Practice source: default";
+      }
+    }
+
+    function refreshPracticeSource() {
+      filteredWordIndexes = getFilteredWordIndexes(currentDifficultyFilter);
+      if (filteredWordIndexes.length === 0) {
+        currentDifficultyFilter = "All";
+        filteredWordIndexes = getFilteredWordIndexes("All");
+      }
+
+      if (filteredWordIndexes.length === 0) {
+        currentPracticeSource = "default";
+        filteredWordIndexes = getFilteredWordIndexes("All");
+      }
+
+      renderDifficultyFilters();
+      renderPracticeSourceControls();
+      resetSessionForFilter();
+      renderCard();
+      saveTaggingAndLists();
+    }
+
+    function getFilteredWordIndexes(filter) {
+      const diffFilter = filter !== undefined ? filter : currentDifficultyFilter;
+      const dueStateFilter = toDueStateValue(currentDueStateFilter);
+      const practiceSourceIndexes = getPracticeSourceWordIndexes();
+
+      return practiceSourceIndexes
+        .map((index) => ({ entry: vocabularyWords[index], index }))
+        .filter((item) => diffFilter === "All" || item.entry.difficulty === diffFilter)
         .filter((item) => {
           if (dueStateFilter === null) {
             return true;
@@ -1539,7 +1890,6 @@
       randomQuizCorrect = 0;
       randomQuizIncorrect = 0;
       randomQuizAnswered = false;
-      randomQuizActive = true;
       randomQuizBanner.hidden = false;
       randomQuizSummary.hidden = true;
       renderRandomQuizCard();
@@ -1632,7 +1982,6 @@
     }
 
     function finishRandomQuiz() {
-      randomQuizActive = false;
       randomQuizBanner.hidden = true;
 
       const total = randomQuizWords.length;
@@ -1652,11 +2001,11 @@
     }
 
     function exitRandomQuiz() {
-      randomQuizActive = false;
       randomQuizBanner.hidden = true;
       randomQuizSummary.hidden = true;
       renderCard();
     }
+
 
     previousButton.addEventListener("click", () => moveToWord(-1));
     nextButton.addEventListener("click", () => moveToWord(1));
@@ -1665,6 +2014,85 @@
       renderCard();
     });
     retryMistakesButton.addEventListener("click", startRetryRound);
+    addTagButton.addEventListener("click", () => {
+      const nextTag = normalizeTag(tagInput.value);
+      if (!nextTag) {
+        return;
+      }
+
+      const tags = getCurrentWordTags();
+      if (!tags.includes(nextTag)) {
+        wordTags.set(getCurrentWord().id, [...tags, nextTag]);
+        saveTaggingAndLists();
+        renderCurrentWordTags();
+      }
+
+      tagInput.value = "";
+    });
+    customListSelect.addEventListener("change", () => {
+      selectedCustomListId = customListSelect.value;
+      renderCustomListControls();
+    });
+    saveCustomListButton.addEventListener("click", () => {
+      const listName = String(customListNameInput.value || "").trim();
+      const tagFilters = parseTagFilters(customListTagFiltersInput.value);
+
+      if (!listName) {
+        practiceSourceStatus.textContent = "Practice source: enter a list name before saving";
+        return;
+      }
+
+      const wordIds = buildWordIdsFromTagFilters(tagFilters);
+      if (wordIds.length === 0) {
+        practiceSourceStatus.textContent = "Practice source: no tagged words match these filters";
+        return;
+      }
+
+      const existingIndex = customPracticeLists.findIndex((item) => item.id === selectedCustomListId);
+      if (existingIndex >= 0) {
+        customPracticeLists[existingIndex] = {
+          id: selectedCustomListId,
+          name: listName,
+          tagFilters,
+          wordIds
+        };
+      } else {
+        selectedCustomListId = `custom-${Date.now()}`;
+        customPracticeLists.push({
+          id: selectedCustomListId,
+          name: listName,
+          tagFilters,
+          wordIds
+        });
+      }
+
+      renderCustomListControls();
+      renderPracticeSourceControls();
+      saveTaggingAndLists();
+      practiceSourceStatus.textContent = `Practice source: saved list ${listName}`;
+    });
+    applyPracticeSourceButton.addEventListener("click", () => {
+      const selectedSource = practiceSourceSelect.value;
+      if (selectedSource === "default" || customPracticeLists.some((item) => item.id === selectedSource)) {
+        currentPracticeSource = selectedSource;
+        refreshPracticeSource();
+      }
+    });
+    startRandomQuizButton.addEventListener("click", () => {
+      startRandomQuiz(vocabularyWords.map((_, i) => i));
+    });
+    startFilteredRandomQuizButton.addEventListener("click", () => {
+      startRandomQuiz(filteredWordIndexes.length > 0 ? filteredWordIndexes : vocabularyWords.map((_, i) => i));
+    });
+    exitRandomQuizButton.addEventListener("click", exitRandomQuiz);
+    restartRandomQuizButton.addEventListener("click", () => {
+      randomQuizSummary.hidden = true;
+      startRandomQuiz(randomQuizWords);
+    });
+    closeRandomQuizSummaryButton.addEventListener("click", () => {
+      randomQuizSummary.hidden = true;
+      renderCard();
+    });
     themeToggleButton.addEventListener("click", () => {
       isDarkTheme = !isDarkTheme;
       applyTheme();
@@ -1697,8 +2125,10 @@
 
     retryMistakesButton.disabled = true;
     mistakeReviewPanel.hidden = true;
-
+    restoreTaggingAndLists();
     restorePracticeProgress();
+    renderCustomListControls();
+    renderPracticeSourceControls();
     renderDifficultyFilters();
     renderDueStateFilters();
     resetSessionForFilter();

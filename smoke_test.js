@@ -45,6 +45,14 @@ const requiredSnippets = [
   "activeDueStateStatus",
   "nextReviewAt",
   "reviewInterval",
+  "currentWordTags",
+  "addTagButton",
+  "tagInput",
+  "practiceSourceSelect",
+  "customListNameInput",
+  "customListTagFiltersInput",
+  "saveCustomListButton",
+  "applyPracticeSourceButton",
   "vocabQuizTheme",
   "chooseQuizAnswer",
   "Question 1 of 12",
@@ -180,6 +188,17 @@ const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
 const dueCount = elements.get("dueCount");
 const overdueCount = elements.get("overdueCount");
+const wordText = elements.get("wordText");
+const tagInput = elements.get("tagInput");
+const addTagButton = elements.get("addTagButton");
+const currentWordTags = elements.get("currentWordTags");
+const customListNameInput = elements.get("customListNameInput");
+const customListTagFiltersInput = elements.get("customListTagFiltersInput");
+const saveCustomListButton = elements.get("saveCustomListButton");
+const customListSelect = elements.get("customListSelect");
+const practiceSourceSelect = elements.get("practiceSourceSelect");
+const applyPracticeSourceButton = elements.get("applyPracticeSourceButton");
+const practiceSourceStatus = elements.get("practiceSourceStatus");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
 assert(difficultyFilterControls.children.length === 4, "difficulty filter should render all filter options");
@@ -196,6 +215,41 @@ assert(finalScore.textContent.includes("Complete all 12 questions"), "final scor
 assert(themeToggleButton, "theme toggle button should exist for quiz interface");
 assert(themeToggleButton.textContent.toLowerCase().includes("dark"), "theme toggle should advertise dark mode action");
 assert(localStorage.getItem("vocabQuizTheme") === "light", "default theme should persist as light");
+
+assert(addTagButton && tagInput && currentWordTags, "tag controls should exist");
+assert(saveCustomListButton && customListSelect, "custom list controls should exist");
+assert(practiceSourceSelect && applyPracticeSourceButton, "practice source controls should exist");
+
+tagInput.value = "travel";
+addTagButton.click();
+
+assert(currentWordTags.children.length > 0, "adding a tag should render at least one tag chip");
+assert(currentWordTags.children[0].textContent.toLowerCase().includes("travel"), "rendered tag chip should include the entered tag text");
+
+const removeFirstTagButton = currentWordTags.children[0].children[0];
+assert(removeFirstTagButton, "tag chip should include remove action");
+removeFirstTagButton.click();
+assert(currentWordTags.children.length === 0, "removing a tag should clear it from current word tag chips");
+
+tagInput.value = "travel";
+addTagButton.click();
+
+customListNameInput.value = "Travel Words";
+customListTagFiltersInput.value = "travel";
+saveCustomListButton.click();
+
+assert(customListSelect.children.length > 0, "saving a custom list should render it in the custom list selector");
+assert(customListSelect.children[0].textContent.includes("Travel Words"), "custom list selector should show saved list name");
+
+practiceSourceSelect.value = customListSelect.children[0].value;
+applyPracticeSourceButton.click();
+
+assert(practiceSourceStatus.textContent.includes("Travel Words"), "practice source status should show selected custom list");
+assert(wordText.textContent === "resilient", "custom list practice source should load matching tagged word");
+
+practiceSourceSelect.value = "default";
+applyPracticeSourceButton.click();
+assert(practiceSourceStatus.textContent.toLowerCase().includes("default"), "default practice source should remain selectable");
 
 themeToggleButton.click();
 
