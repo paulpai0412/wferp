@@ -53,6 +53,11 @@ const requiredSnippets = [
   "customListTagFiltersInput",
   "saveCustomListButton",
   "applyPracticeSourceButton",
+  "openShortcutModalButton",
+  "closeShortcutModalButton",
+  "shortcutModal",
+  "shortcutModalBackdrop",
+  "handleGlobalShortcuts",
   "vocabQuizTheme",
   "chooseQuizAnswer",
   "Question 1 of 12",
@@ -133,6 +138,7 @@ function makeElement(id) {
 }
 
 const elements = new Map();
+const documentListeners = {};
 const storage = new Map();
 const now = Date.now();
 
@@ -167,8 +173,28 @@ const document = {
   createElement(tagName) {
     return makeElement(tagName);
   },
+  addEventListener(event, callback) {
+    documentListeners[event] = callback;
+  },
   body: makeElement("body")
 };
+
+function dispatchDocumentKeydown(event) {
+  if (documentListeners.keydown) {
+    const payload = {
+      key: event.key,
+      shiftKey: Boolean(event.shiftKey),
+      target: event.target || null,
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
+      }
+    };
+    documentListeners.keydown(payload);
+    return payload;
+  }
+  return null;
+}
 
 vm.runInNewContext(scriptMatch[1], { document, Set, localStorage });
 
@@ -199,6 +225,12 @@ const customListSelect = elements.get("customListSelect");
 const practiceSourceSelect = elements.get("practiceSourceSelect");
 const applyPracticeSourceButton = elements.get("applyPracticeSourceButton");
 const practiceSourceStatus = elements.get("practiceSourceStatus");
+const openShortcutModalButton = elements.get("openShortcutModalButton");
+const closeShortcutModalButton = elements.get("closeShortcutModalButton");
+const shortcutModal = elements.get("shortcutModal");
+const shortcutModalBackdrop = elements.get("shortcutModalBackdrop");
+const definitionText = elements.get("definitionText");
+const learnedButton = elements.get("learnedButton");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
 assert(difficultyFilterControls.children.length === 4, "difficulty filter should render all filter options");
@@ -219,6 +251,43 @@ assert(localStorage.getItem("vocabQuizTheme") === "light", "default theme should
 assert(addTagButton && tagInput && currentWordTags, "tag controls should exist");
 assert(saveCustomListButton && customListSelect, "custom list controls should exist");
 assert(practiceSourceSelect && applyPracticeSourceButton, "practice source controls should exist");
+assert(openShortcutModalButton && closeShortcutModalButton, "shortcut modal controls should exist");
+assert(shortcutModal && shortcutModalBackdrop, "shortcut modal elements should exist");
+
+shortcutModal.hidden = true;
+openShortcutModalButton.click();
+assert(shortcutModal.hidden === false, "clicking shortcut help button should open modal");
+
+closeShortcutModalButton.click();
+assert(shortcutModal.hidden === true, "clicking close button should close modal");
+
+openShortcutModalButton.click();
+shortcutModalBackdrop.click();
+assert(shortcutModal.hidden === true, "clicking modal backdrop should close shortcut modal");
+
+const openByKeyboard = dispatchDocumentKeydown({ key: "?" });
+assert(openByKeyboard && openByKeyboard.defaultPrevented === true, "question-mark shortcut should prevent default behavior");
+assert(shortcutModal.hidden === false, "question-mark shortcut should open shortcut modal");
+
+const closeByEscape = dispatchDocumentKeydown({ key: "Escape" });
+assert(closeByEscape && closeByEscape.defaultPrevented === true, "escape key should prevent default when closing shortcut modal");
+assert(shortcutModal.hidden === true, "escape key should close shortcut modal");
+
+assert(wordProgress.textContent === "Question 1 of 12", "question progress should start at first question before keyboard navigation");
+dispatchDocumentKeydown({ key: "ArrowRight" });
+assert(wordProgress.textContent === "Question 2 of 12", "right arrow shortcut should navigate to next word");
+dispatchDocumentKeydown({ key: "ArrowLeft" });
+assert(wordProgress.textContent === "Question 1 of 12", "left arrow shortcut should navigate to previous word");
+
+assert(definitionText.classList.contains("hidden"), "definition should begin hidden before reveal shortcut");
+dispatchDocumentKeydown({ key: " ", target: null });
+assert(definitionText.classList.contains("hidden") === false, "space shortcut should reveal definition");
+dispatchDocumentKeydown({ key: " ", target: null });
+assert(definitionText.classList.contains("hidden"), "space shortcut should hide definition when pressed again");
+
+assert(learnedButton.disabled === false, "learned button should begin enabled for current word");
+dispatchDocumentKeydown({ key: "m" });
+assert(learnedButton.disabled === true, "m shortcut should mark the current word as learned");
 
 tagInput.value = "travel";
 addTagButton.click();
