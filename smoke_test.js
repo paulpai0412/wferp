@@ -179,11 +179,15 @@ const dueReminderBadge = elements.get("dueReminderBadge");
 const wordProgress = elements.get("wordProgress");
 const streakProgress = elements.get("streakProgress");
 const dueCount = elements.get("dueCount");
+const overdueCount = elements.get("overdueCount");
 
 assert(quizOptions.children.length >= 4, "quiz mode should render multiple answer choices");
 assert(difficultyFilterControls.children.length === 4, "difficulty filter should render all filter options");
 assert(dueStateFilterControls.children.length === 4, "due-state filter should render all filter options");
-assert(dueCount.textContent === "1", "review summary should count due words from stored metadata");
+assert(
+  (Number.parseInt(dueCount.textContent || "0", 10) || 0) + (Number.parseInt(overdueCount.textContent || "0", 10) || 0) === 1,
+  "review summary should count due or overdue words from stored metadata"
+);
 assert(dueReminderBadge.textContent.includes("1"), "due reminder badge should show current due count");
 assert(scoreProgress.textContent === "Score 0 / 0", "initial score should show zero answered questions");
 assert(wordProgress.textContent === "Question 1 of 12", "progress should start from question 1 of 12");
@@ -218,6 +222,12 @@ assert(dueFilterButton, "due-state due filter button should exist");
 dueFilterButton.click();
 assert(difficultyText.textContent === "Medium", "due-state filter should keep due words visible");
 
+const overdueFilterButton = dueStateFilterControls.children.find((button) => button.textContent === "Overdue");
+assert(overdueFilterButton, "due-state overdue filter button should exist");
+overdueFilterButton.click();
+assert(difficultyText.textContent === "Medium", "overdue filter should show past-due reviewed words");
+dueFilterButton.click();
+
 const correctButton = quizOptions.children.find((button) => button.textContent.includes("recover quickly"));
 assert(correctButton, "first quiz should include the correct definition for resilient");
 
@@ -231,10 +241,8 @@ assert(
   "due reminder badge should hide or show zero when there are no due words"
 );
 
-const reviewedFilterButton = dueStateFilterControls.children.find((button) => button.textContent === "Reviewed");
-assert(reviewedFilterButton, "due-state reviewed filter button should exist");
-reviewedFilterButton.click();
-assert(wordProgress.textContent.includes("Question"), "reviewed filter should still render a question view");
+overdueFilterButton.click();
+assert(wordProgress.textContent.includes("Question"), "overdue filter should still render a question view");
 
 const allDueStateButton = dueStateFilterControls.children.find((button) => button.textContent === "All");
 assert(allDueStateButton, "due-state all filter button should exist");

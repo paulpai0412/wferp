@@ -803,7 +803,7 @@
     const startFilteredRandomQuizButton = document.getElementById("startFilteredRandomQuizButton");
 
     const difficultyFilters = ["All", "Easy", "Medium", "Hard"];
-    const dueStateFilters = ["All", "New", "Due", "Reviewed"];
+    const dueStateFilters = ["All", "New", "Due", "Overdue"];
 
     let currentIndex = 0;
     let currentQuestion = 0;
@@ -861,7 +861,7 @@
         return "Due";
       }
       if (value === "overdue") {
-        return "Reviewed";
+        return "Overdue";
       }
       return "All";
     }
@@ -873,7 +873,7 @@
       if (value === "Due") {
         return "due";
       }
-      if (value === "Reviewed") {
+      if (value === "Overdue") {
         return "overdue";
       }
       return null;
